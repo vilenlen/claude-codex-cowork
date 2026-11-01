@@ -24,7 +24,7 @@ description: Team Lead 模式：Claude 拆解任务、做关键决策和验收�
 每个 Claude 会话首次使用前检查 `codex login status`。模型是否可用以交互窗口实际结果为准；不可用时停下问用户，不自行替换。脚本内一律经 `bash -c` 启动（交互 shell 的 `codex` 可能有别名）。
 
 ## 启动后再发任务（固定顺序）
-1. 将任务正文写入本地 UTF-8 文件，保留换行，不拼入 shell 命令。
+1. 将任务正文写入本地 UTF-8 文件，保留换行，不拼入 shell 命令。**第一行必须是任务标题，且以 `【CC指派】` 开头**（如 `【CC指派】修复登录超时`）；后续补充、验收反馈、新任务同样适用。`send.sh`/`wait.py` 靠首行定位会话日志，所以标题要放在首行且不要留空行在前。
 2. 执行 `scripts/dispatch.sh <name> <dir> -m <模型> [--search]`。脚本只启动交互式 `codex -a never -s danger-full-access -m <模型>`，此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID）。在 tmux 内用 tmux 分屏；否则在 iTerm2 内用 iTerm2 分屏；两者都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Claude 右侧，之后的叠在上一个 worker 下方。
 3. 用 `scripts/capture.sh <窗口ID> 80` 查看该窗口。必须确认状态栏显示模型名和 `Ready`、输入框已就绪，且没有登录、目录信任、模型错误或其他待处理提示；启动失败或状态不明时不要发送任务。尚在启动时可短暂等待后再确认，不能仅凭固定延时认定就绪。
 4. 执行 `scripts/send.sh <窗口ID> <prompt文件>`，以 bracketed paste 向已启动的 Codex 窗口粘贴完整任务，再按 Enter 提交。任务中的引号、反引号、`$()` 和多行正文必须按字面传入。
