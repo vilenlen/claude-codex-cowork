@@ -2,6 +2,8 @@
 
 让 **Claude Code 当 Team Lead,本机 Codex CLI 当工程师**。Claude 负责澄清需求、拆解任务和验收;编码、调试、测试等重活交给 Codex,在 tmux / iTerm2 的分屏里并行运行。
 
+> **Skill 名称是 `coworker`**(调用方式 `/coworker`),`claude-codex-cowork` 只是本仓库的名字,不是 skill 名。
+
 目的是省 Claude token:Codex 的过程输出不进入 Claude 上下文,Claude 只收到一行终态,再按需读取结论。
 
 ## 仓库内容
@@ -28,7 +30,7 @@ coworker/
 
 ## 安装
 
-把 `coworker/` 放到 Claude Code 的 skills 目录:
+把仓库里的 `coworker/` 目录放到 Claude Code 的 skills 目录,安装后 skill 名为 `coworker`(不是 `claude-codex-cowork`):
 
 ```bash
 cp -R coworker ~/.claude/skills/
