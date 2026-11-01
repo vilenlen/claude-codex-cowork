@@ -28,9 +28,15 @@ description: Team Lead 模式：Claude 拆解任务、做关键决策和验收�
 2. 执行 `scripts/dispatch.sh <name> <dir> -m <模型> [--search]`。脚本只启动交互式 `codex -a never -s danger-full-access -m <模型>`，此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID）。在 tmux 内用 tmux 分屏；否则在 iTerm2 内用 iTerm2 分屏；两者都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Claude 右侧，之后的叠在上一个 worker 下方。
 3. 用 `scripts/capture.sh <窗口ID> 80` 查看该窗口。必须确认状态栏显示模型名和 `Ready`、输入框已就绪，且没有登录、目录信任、模型错误或其他待处理提示；启动失败或状态不明时不要发送任务。尚在启动时可短暂等待后再确认，不能仅凭固定延时认定就绪。
 4. 执行 `scripts/send.sh <窗口ID> <prompt文件>`，以 bracketed paste 向已启动的 Codex 窗口粘贴完整任务，再按 Enter 提交。任务中的引号、反引号、`$()` 和多行正文必须按字面传入。
-5. 补充材料、验收反馈和后续任务仍发送到原 `<窗口ID>` 窗口；发送前确认上一轮已结束且输入框可用。窗口退出时先核实原任务结果，再决定恢复会话或重新启动。
+5. 补充材料、验收反馈和后续任务仍发送到原 `<窗口ID>` 窗口；发送前确认上一轮已结束且输入框可用。窗口退出时先核实原任务结果，再按「恢复已关闭的窗口」恢复会话，或重新启动。
 
 **所有委派均走交互窗口。不得用 `codex exec`、`codex app-server`、stdin 重定向或启动命令的位置参数代替“先启动、再发消息”。**
+
+## 恢复已关闭的窗口
+- 用任务标题查会话：`grep -rl '<任务标题>' ~/.codex/sessions | tail -1`。文件名 `rollout-<时间>-<UUID>.jsonl` 末尾的 UUID 即会话 UUID。
+- 执行 `scripts/dispatch.sh <name> <原工作目录> -m <原模型> --resume <UUID>`，在新分屏恢复原会话及上下文；可同时传 `--search`，两个可选参数顺序不限，`-m` 仍必填。
+- 记录新返回的窗口 ID，旧 ID 作废；按原流程用 `capture.sh` 确认 `Ready`，再用 `send.sh` 发任务并立即挂 `wait.py`。
+- 同一会话不要同时开两个窗口。
 
 ## 等待与结果（省 token 是本 skill 的目的）
 Codex 的过程输出不进 Claude 上下文。等待交给后台脚本，Claude 只收一行终态，再按需读结论。
@@ -67,7 +73,7 @@ Codex 的过程输出不进 Claude 上下文。等待交给后台脚本，Claude
 - 每次代答都记进阶段交接（问题、所选答案、理由），方便用户事后复核。
 
 ## 窗口注意事项
-- 窗口 ID 在窗口关闭后失效；`codex` 退出时分屏随之关闭，发送和查看会报错。
+- 窗口 ID 在窗口关闭后失效；`codex` 退出时分屏随之关闭，发送和查看会报错。先核实原任务结果，再按「恢复已关闭的窗口」恢复会话，或重新启动。
 - Codex TUI 的显示可能与实际输入不同（如吞掉 `\\n`、把反引号渲染掉）；需核对字面内容时查 `~/.codex/sessions` 下的 rollout 日志。
 - 任务结束后关闭窗口：iTerm2 用 `scripts/iterm.sh close <UUID>`（只能关闭带 worker 标记的窗口），tmux 用 `tmux kill-pane -t %N`。先确认结果已取走。
 - 修改脚本后运行 `scripts/selfcheck.sh`，它不启动 Codex，校验 `wait.py` 的回合与提问判定，以及当前可用后端（tmux、iTerm2）的字节保真、读取和标记保护。

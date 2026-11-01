@@ -70,6 +70,8 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 
 所有委派都走交互窗口,不使用 `codex exec` 或 `codex app-server`。
 
+窗口关闭后可用 `dispatch.sh <name> <原工作目录> -m <原模型> --resume <UUID>` 恢复原会话,用新窗口 ID 确认 `Ready` 后继续发送任务并挂 `wait.py`;详见 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口)。
+
 ## 模型选择
 
 新建窗口必须显式传 `-m`。
@@ -90,7 +92,7 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 
 ## 常见问题
 
-- **窗口 ID 失效**:窗口关闭后 ID 即失效,`codex` 退出时分屏随之关闭,此时先核实原任务结果再决定重启。
+- **窗口 ID 失效**:窗口关闭后 ID 即失效,`codex` 退出时分屏随之关闭,此时先核实原任务结果,再按 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口) 恢复会话或重新启动。
 - **TUI 显示与实际输入不一致**:需核对字面内容时查看 `~/.codex/sessions` 下的 rollout 日志。
 - **修改脚本后**:重新运行 `selfcheck.sh`。
 - **关闭窗口**:iTerm2 用 `scripts/iterm.sh close <UUID>`,tmux 用 `tmux kill-pane -t %N`,先确认结果已取走。

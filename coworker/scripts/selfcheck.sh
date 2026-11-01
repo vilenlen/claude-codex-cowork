@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 # Self-check for available backends: opens raw-tty panes (no Codex) and asserts byte fidelity, capture and guards.
 set -euo pipefail
-S=$(cd "$(dirname "$0")" && pwd); D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
+S=$(cd "$(dirname "$0")" && pwd)
+expect_dispatch_error() {
+  local status=0
+  bash "$S/dispatch.sh" selfcheck "$S" -m selfcheck "$@" >/dev/null 2>&1 || status=$?
+  [[ $status -eq 2 ]] || { echo "FAIL: dispatch accepted invalid arguments or failed outside validation: $* (exit $status)" >&2; exit 1; }
+}
+expect_dispatch_error --resume invalid-uuid
+expect_dispatch_error --resume
+expect_dispatch_error --unknown
+
+D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
 trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
 python3 -I - "$D/p.txt" <<'PY'
 import sys

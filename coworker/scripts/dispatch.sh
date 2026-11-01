@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
 # Start an interactive Codex split (tmux inside tmux, else iTerm2, else a detached tmux session); send the task separately after checking readiness.
-# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--search]
+# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--search] [--resume <session-UUID>]
 set -euo pipefail
-[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--search]" >&2; exit 2; }
+[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--search] [--resume <session-UUID>]" >&2; exit 2; }
 name=$1 dir=$2; shift 2
 [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad task name: $name" >&2; exit 2; }
 [[ -d $dir ]] || { echo "missing project dir" >&2; exit 2; }
 [[ $1 == -m && -n $2 ]] || { echo "explicit -m <model> is required" >&2; exit 2; }
 model=$2; shift 2
-[[ $# -eq 0 || ( $# -eq 1 && $1 == --search ) ]] || { echo "only --search is supported after the model" >&2; exit 2; }
+search= resume=
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --search) search=1; shift ;;
+    --resume)
+      [[ $# -ge 2 ]] || { echo "--resume requires a session UUID" >&2; exit 2; }
+      [[ $2 =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]] || { echo "bad session UUID: $2" >&2; exit 2; }
+      resume=$2; shift 2 ;;
+    *) echo "unknown argument: $1 (expected --search or --resume <session-UUID>)" >&2; exit 2 ;;
+  esac
+done
 command -v codex >/dev/null || { echo "codex not found" >&2; exit 1; }
-printf -v cmd 'exec codex -a never -s danger-full-access -m %q' "$model"
-[[ $# -eq 0 ]] || cmd+=' --search'
+cmd='exec codex'
+[[ -z $resume ]] || cmd+=' resume'
+printf -v cmd '%s -a never -s danger-full-access -m %q' "$cmd" "$model"
+[[ -z $search ]] || cmd+=' --search'
+[[ -z $resume ]] || cmd+=" $resume"
 # Use bash without interactive aliases; never put the task in the startup command.
 printf -v shcmd 'exec bash -c %q' "$cmd"
 hint='Check this pane with scripts/capture.sh <pane>, then use scripts/send.sh <pane> <prompt-file>.'
