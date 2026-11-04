@@ -1,0 +1,46 @@
+coworker/scripts/answer.sh
+  s_1ae7cd57210a75::t_bd304d9b9dd3b7 12,17-28
+coworker/scripts/session-start.sh
+  s_1ae7cd57210a75::t_839b920d32b9ab 2-3,5
+coworker/scripts/selfcheck.sh
+  s_1ae7cd57210a75::t_bd304d9b9dd3b7 15,72-84
+  s_1ae7cd57210a75::t_d38b578637d075 85-86
+coworker/scripts/capture.sh
+  s_1ae7cd57210a75::t_839b920d32b9ab 9-10
+coworker/SKILL.md
+  s_1ae7cd57210a75::t_64c023a12c1481 3,28,78-79
+coworker/scripts/send.sh
+  s_1ae7cd57210a75::t_839b920d32b9ab 21-29
+coworker/scripts/dispatch.sh
+  s_1ae7cd57210a75::t_839b920d32b9ab 2-3,11,15-17,30,42-48
+coworker/scripts/terminal.sh
+  s_1ae7cd57210a75::t_bd88a4eb58b3c7 138-142
+  s_1ae7cd57210a75::t_96bba0d639fbde 3-4,14,24-25,27-28,53,68,112
+  s_1ae7cd57210a75::t_7e60b4af6ad76a 15,30
+  s_1ae7cd57210a75::t_811a64419838b9 54
+  s_1ae7cd57210a75::t_274e7749c7f422 59-63
+  s_1ae7cd57210a75::t_ef00f8254d783a 31,35,135,137
+  s_1ae7cd57210a75::t_57bc866d8c986c 124-126
+  s_1ae7cd57210a75::t_1310a36e913603 29
+  s_1ae7cd57210a75::t_b248fb61f56413 1-2,5-13,16-23,26,32-34,36-52,55-58,64-67,69-111,113-123,127-134,136,143
+README.md
+  s_1ae7cd57210a75::t_64c023a12c1481 3,21-22,29,40,91,99
+coworker/scripts/wait.py
+  s_1ae7cd57210a75::t_839b920d32b9ab 26-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1fab5ef79e9a81dc158c06e5a68de3f66de37cb1",
+  "prompts": {},
+  "sessions": {
+    "s_1ae7cd57210a75": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c13ad4-65ba-4a31-a4cb-fc2bff9960a1",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
