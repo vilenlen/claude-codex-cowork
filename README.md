@@ -1,43 +1,32 @@
 # claude-codex-cowork
 
-让 **Claude Code 当 Team Lead,本机 Codex CLI 当工程师**。Claude 负责澄清需求、拆解任务和验收;编码、调试、测试等重活交给 Codex,在 tmux / iTerm2 的分屏或 Terminal.app 的并排窗口里并行运行。
+让 **Claude Code 当 Team Lead，本机 Codex CLI 当工程师**。Claude 拆解任务、选择模型、协调进度和验收；Codex 在旁边的终端窗口里完成调查、编码、测试与排障。
 
-> **Skill 名称是 `coworker`**(调用方式 `/coworker`),`claude-codex-cowork` 只是本仓库的名字,不是 skill 名。
+Skill 名称是 **`coworker`**，在 Claude Code 中用 `/coworker` 调用。
 
-目的是省 Claude token:Codex 的过程输出不进入 Claude 上下文,Claude 只收到一行终态,再按需读取结论。
+## 能做什么
 
-## 仓库内容
-
-```
-coworker/
-├── SKILL.md              # Claude Code skill:委派流程、模型选择、验收规则
-└── scripts/
-    ├── dispatch.sh       # 在分屏里启动交互式 Codex(只启动,不发任务)
-    ├── send.sh           # 以 bracketed paste 向已就绪的窗口发送任务
-    ├── wait.py           # 后台等待回合结束或中途提问,只输出一行终态
-    ├── answer.sh         # 按键回答 Codex 的阻塞式提问菜单
-    ├── capture.sh        # 查看窗口最后 N 行(就绪检查、异常排查)
-    ├── iterm.sh          # iTerm2 后端:split / info / send / keys / capture / tty / close
-    ├── terminal.sh       # macOS 终端(Terminal.app)后端:split / info / send / keys / capture / tty / close
-    ├── session-start.sh  # SessionStart hook:在 tmux/iTerm2/Terminal.app 中自动启用 Team Lead 模式
-    └── selfcheck.sh      # 自检:不启动 Codex,校验后端字节保真与 wait.py 的回合/提问判定
-```
-
-## 前置条件
-
-- macOS,Claude Code 与 Codex CLI(`codex`)已安装,并已登录(`codex login status`)
-- 在 **tmux**、**iTerm2** 或 macOS 自带的 **终端(Terminal.app)** 中运行 Claude Code,脚本自动识别;Terminal.app 需允许自动化控制「终端」;都不是时,脚本会创建独立 tmux 会话并输出 attach 命令
-- `bash`、`python3`
+- **分屏协作**：支持 tmux、iTerm2 分屏和 Terminal.app 并排窗口，可同时安排多个 Codex 处理独立任务。
+- **节省 Claude 上下文**：后台等待 Codex，只回传终态和必要结论，避免持续读入过程输出。
+- **持续跟进**：Claude 处理有依据的技术提问，验收不通过就反馈给原窗口继续；业务决策或授权问题交给你。
+- **回收与恢复**：超过 4 个 worker 窗口时检查闲置项，保存恢复信息后关闭暂时不用的窗口，需要时恢复原会话。运行中或等待回答的窗口保留。
 
 ## 安装
 
-把仓库里的 `coworker/` 目录放到 Claude Code 的 skills 目录,安装后 skill 名为 `coworker`(不是 `claude-codex-cowork`):
+需要 macOS、已安装并登录的 Claude Code / Codex CLI，以及 `bash`、`python3`。在 tmux、iTerm2 或 Terminal.app 中运行 Claude Code；Terminal.app 需允许自动化控制「终端」。其他终端下会创建独立 tmux 会话，因此需要安装 tmux。
+
+在仓库目录执行：
 
 ```bash
+mkdir -p ~/.claude/skills
 cp -R coworker ~/.claude/skills/
+bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 ```
 
-可选:在 `~/.claude/settings.json` 里注册 SessionStart hook,让会话在 tmux/iTerm2/Terminal.app 中自动进入 Team Lead 模式(其他环境下该脚本静默退出):
+<details>
+<summary>可选：启动 Claude 会话时自动启用</summary>
+
+将以下配置合并到 `~/.claude/settings.json`，保留已有设置。在 tmux、iTerm2 或 Terminal.app 中启动新会话时，hook 会自动启用 Team Lead 模式。
 
 ```json
 {
@@ -49,55 +38,25 @@ cp -R coworker ~/.claude/skills/
 }
 ```
 
-安装后运行自检确认环境可用:
+</details>
 
-```bash
-bash ~/.claude/skills/coworker/scripts/selfcheck.sh
+## 怎么用
+
+在 Claude Code 中直接描述目标、修改范围和验收要求，例如：
+
+```text
+/coworker 修复登录超时，只改认证模块，跑通相关测试。你负责拆解和验收，让 Codex 实现。
 ```
 
-## 工作流程
+也可以说「派给 Codex」「让 Codex 做」「并行开几个 Codex」。Claude 会负责启动窗口、确认就绪、发送任务、等待结果和验收，你不必手动执行脚本。
 
-在 Claude Code 里说"派给 codex""让 codex 做""并行开几个 codex"等,或启用 hook 后直接提编码类任务,Claude 会按固定顺序执行:
+## 使用建议
 
-1. **拆解**:写明目标、工作目录、修改边界、必要材料、验收条件,任务正文存为本地文件。
-2. **启动**:`dispatch.sh <name> <dir> -m <模型> [--search]`,启动交互式 `codex -a never -s danger-full-access`,返回 `pane=<窗口ID>`。
-3. **确认就绪**:`capture.sh <窗口ID> 80`,确认状态栏显示模型名和 `Ready`,无登录、目录信任或模型错误提示。
-4. **发送**:`send.sh <窗口ID> <prompt文件>`,引号、反引号、`$()`、多行均按字面传入。
-5. **等待**:后台运行 `wait.py <窗口ID>`,它读取 Codex 会话日志,不读窗口内容。回合结束或 Codex 中途提问时输出一行:
-   `status=completed|aborted|needs_input|stalled|exited|timeout pane=… elapsed=…s chars=… last=<文件>`
-   - `needs_input`:Codex 中途提问,`last=` 文件是问题 JSON。能由已有上下文、已确认决策或仓库约定确定的,Claude 直接作答并说明理由;涉及业务取舍、授权范围、不可逆操作或依据不足的,转给用户选择。阻塞菜单用 `answer.sh <窗口ID> <答案文件>`(每题一行 `<序号> [说明]`),非阻塞提问用 `send.sh` 发消息作答,然后再挂 `wait.py`。
-   - `stalled`:日志 2 分钟没有变化且界面不在 `Working`,多半是日志里没有记录的弹窗,`last=` 文件是屏幕末尾 25 行。
-6. **验收**:Claude 读取 `last=` 文件并亲自运行检查。结果不符时向原窗口发送反馈,不自行重写。
+- **让 Claude 按场景选模型**：可以说「由你按任务复杂度选择 Codex 模型，复杂分析用 gpt-6-astra，简单修改和验证用 gpt-6.1-sol」。也可以提供自己的模型分工；模型不可用时会询问你。
+- **按任务阶段分工**：当前 Skill 默认复杂分析、架构、根因定位和跨模块实现用 `gpt-6-astra`；简单任务、已授权发布、冒烟和结果核对用 `gpt-6.1-sol`。这些是本 Skill 的默认配置。
+- **只并行独立任务**：例如「一个 Codex 排查接口，一个补前端测试，你负责整合」，同时说明各自修改范围，减少互相覆盖。
+- **把完成标准说清楚**：给出工作目录、允许修改的范围、要跑的检查，以及是否需要 commit / push。后续反馈可直接说「让刚才的 Codex 继续修复测试」。
 
-所有委派都走交互窗口,不使用 `codex exec` 或 `codex app-server`。
+Codex 默认以 `-a never -s danger-full-access` 启动，拥有完整文件系统访问权限，请在可信项目中使用。发布、推送等操作仍需你的授权。
 
-本次会话的 worker 分屏超过 4 个（或新建后会超过）时，Claude 会主动检查闲置窗口：先保存会话 UUID、目录、模型和恢复命令，再关闭已完成且暂时不用的窗口。运行中、等待回答或无法确认可恢复的窗口会保留；没有合适项时允许超过 4 个。详见 [闲置窗口回收](coworker/SKILL.md#闲置窗口回收)。
-
-窗口关闭后可用 `dispatch.sh <name> <原工作目录> -m <原模型> --resume <UUID>` 恢复原会话,用新窗口 ID 确认 `Ready` 后继续发送任务并挂 `wait.py`;详见 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口)。
-
-## 模型选择
-
-新建窗口必须显式传 `-m`。
-
-| 场景 | 模型 |
-|---|---|
-| 复杂分析、架构、根因、跨模块实现 | `gpt-6-astra` |
-| 简单任务、发布、冒烟、回放验收、结果核对 | `gpt-6.1-sol` |
-
-模型是否可用以交互窗口的实际结果为准,不可用时停下询问,不自行替换。
-
-## 安全说明
-
-- Codex 以 `-a never -s danger-full-access` 启动,即无需审批、拥有完整文件系统访问。只在可信的项目目录中使用。
-- 启动参数不等于授权:发布、推送等操作仍需用户明确授权。
-- `iterm.sh close` / `terminal.sh close` 只能关闭带 worker 标记的窗口。
-- 不要把密码、token 等凭据写进任务文件或提交到仓库。
-
-## 常见问题
-
-- **窗口 ID 失效**:窗口关闭后 ID 即失效,`codex` 退出时分屏随之关闭,此时先核实原任务结果,再按 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口) 恢复会话或重新启动。
-- **TUI 显示与实际输入不一致**:需核对字面内容时查看 `~/.codex/sessions` 下的 rollout 日志。
-- **修改脚本后**:重新运行 `selfcheck.sh`。
-- **关闭窗口**:iTerm2 用 `scripts/iterm.sh close <UUID>`,Terminal.app 用 `scripts/terminal.sh close <ttysNNN>`,tmux 用 `tmux kill-pane -t %N`,先确认结果已取走。
-
-详细规则见 [`coworker/SKILL.md`](coworker/SKILL.md)。
+完整流程、恢复命令与脚本说明见 [`coworker/SKILL.md`](coworker/SKILL.md)。
