@@ -1,0 +1,21 @@
+README.md
+  s_db66b63d204d8b::t_46b244a291c09c 74-75
+coworker/SKILL.md
+  s_db66b63d204d8b::t_46b244a291c09c 28,35-41,43,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8207dba0087b8a3268dbbfab4e2c98e4b734e871",
+  "prompts": {},
+  "sessions": {
+    "s_db66b63d204d8b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a506-baed-77a1-9862-0d0b8337c8e8",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
