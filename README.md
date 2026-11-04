@@ -71,6 +71,8 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 
 所有委派都走交互窗口,不使用 `codex exec` 或 `codex app-server`。
 
+本次会话的 worker 分屏超过 4 个（或新建后会超过）时，Claude 会主动检查闲置窗口：先保存会话 UUID、目录、模型和恢复命令，再关闭已完成且暂时不用的窗口。运行中、等待回答或无法确认可恢复的窗口会保留；没有合适项时允许超过 4 个。详见 [闲置窗口回收](coworker/SKILL.md#闲置窗口回收)。
+
 窗口关闭后可用 `dispatch.sh <name> <原工作目录> -m <原模型> --resume <UUID>` 恢复原会话,用新窗口 ID 确认 `Ready` 后继续发送任务并挂 `wait.py`;详见 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口)。
 
 ## 模型选择
