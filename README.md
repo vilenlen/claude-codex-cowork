@@ -1,6 +1,6 @@
 # claude-codex-cowork
 
-让 **Claude Code 当 Team Lead,本机 Codex CLI 当工程师**。Claude 负责澄清需求、拆解任务和验收;编码、调试、测试等重活交给 Codex,在 tmux / iTerm2 的分屏里并行运行。
+让 **Claude Code 当 Team Lead,本机 Codex CLI 当工程师**。Claude 负责澄清需求、拆解任务和验收;编码、调试、测试等重活交给 Codex,在 tmux / iTerm2 的分屏或 Terminal.app 的并排窗口里并行运行。
 
 > **Skill 名称是 `coworker`**(调用方式 `/coworker`),`claude-codex-cowork` 只是本仓库的名字,不是 skill 名。
 
@@ -18,14 +18,15 @@ coworker/
     ├── answer.sh         # 按键回答 Codex 的阻塞式提问菜单
     ├── capture.sh        # 查看窗口最后 N 行(就绪检查、异常排查)
     ├── iterm.sh          # iTerm2 后端:split / info / send / keys / capture / tty / close
-    ├── session-start.sh  # SessionStart hook:在 tmux/iTerm2 中自动启用 Team Lead 模式
+    ├── terminal.sh       # macOS 终端(Terminal.app)后端:split / info / send / keys / capture / tty / close
+    ├── session-start.sh  # SessionStart hook:在 tmux/iTerm2/Terminal.app 中自动启用 Team Lead 模式
     └── selfcheck.sh      # 自检:不启动 Codex,校验后端字节保真与 wait.py 的回合/提问判定
 ```
 
 ## 前置条件
 
 - macOS,Claude Code 与 Codex CLI(`codex`)已安装,并已登录(`codex login status`)
-- 在 **tmux** 或 **iTerm2** 中运行 Claude Code;两者都不是时,脚本会创建独立 tmux 会话并输出 attach 命令
+- 在 **tmux**、**iTerm2** 或 macOS 自带的 **终端(Terminal.app)** 中运行 Claude Code,脚本自动识别;Terminal.app 需允许自动化控制「终端」;都不是时,脚本会创建独立 tmux 会话并输出 attach 命令
 - `bash`、`python3`
 
 ## 安装
@@ -36,7 +37,7 @@ coworker/
 cp -R coworker ~/.claude/skills/
 ```
 
-可选:在 `~/.claude/settings.json` 里注册 SessionStart hook,让会话在 tmux/iTerm2 中自动进入 Team Lead 模式(其他环境下该脚本静默退出):
+可选:在 `~/.claude/settings.json` 里注册 SessionStart hook,让会话在 tmux/iTerm2/Terminal.app 中自动进入 Team Lead 模式(其他环境下该脚本静默退出):
 
 ```json
 {
@@ -87,7 +88,7 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 
 - Codex 以 `-a never -s danger-full-access` 启动,即无需审批、拥有完整文件系统访问。只在可信的项目目录中使用。
 - 启动参数不等于授权:发布、推送等操作仍需用户明确授权。
-- `iterm.sh close` 只能关闭带 worker 标记的窗口。
+- `iterm.sh close` / `terminal.sh close` 只能关闭带 worker 标记的窗口。
 - 不要把密码、token 等凭据写进任务文件或提交到仓库。
 
 ## 常见问题
@@ -95,6 +96,6 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 - **窗口 ID 失效**:窗口关闭后 ID 即失效,`codex` 退出时分屏随之关闭,此时先核实原任务结果,再按 [恢复已关闭的窗口](coworker/SKILL.md#恢复已关闭的窗口) 恢复会话或重新启动。
 - **TUI 显示与实际输入不一致**:需核对字面内容时查看 `~/.codex/sessions` 下的 rollout 日志。
 - **修改脚本后**:重新运行 `selfcheck.sh`。
-- **关闭窗口**:iTerm2 用 `scripts/iterm.sh close <UUID>`,tmux 用 `tmux kill-pane -t %N`,先确认结果已取走。
+- **关闭窗口**:iTerm2 用 `scripts/iterm.sh close <UUID>`,Terminal.app 用 `scripts/terminal.sh close <ttysNNN>`,tmux 用 `tmux kill-pane -t %N`,先确认结果已取走。
 
 详细规则见 [`coworker/SKILL.md`](coworker/SKILL.md)。

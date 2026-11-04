@@ -12,7 +12,7 @@ expect_dispatch_error --resume
 expect_dispatch_error --unknown
 
 D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
-trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
+trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || "$S/terminal.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
 python3 -I - "$D/p.txt" <<'PY'
 import sys
 open(sys.argv[1], 'w', encoding='utf-8').write(''.join('行%05d "q" `bt` $(x) \\n | & ;\n' % i for i in range(2000)))
@@ -67,6 +67,21 @@ if [[ -n ${ITERM_SESSION_ID:-} && -z ${TMUX:-} ]]; then
   "$S/capture.sh" "$P" 5 >/dev/null
   "$S/iterm.sh" close "$P" >/dev/null; P=
   echo "iterm2 ok"
+fi
+
+if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Apple_Terminal ]]; then
+  P=$("$S/terminal.sh" split selfcheck "stty raw -echo; cat > $D/r.bin")
+  sleep 2
+  [[ $("$S/terminal.sh" info "$P") == selfcheck\|* ]] || { echo "FAIL tag" >&2; exit 1; }
+  "$S/send.sh" "$P" "$D/p.txt" >/dev/null 2>&1 && { echo "FAIL: send accepted non-codex job" >&2; exit 1; }
+  "$S/terminal.sh" send "$P" "$D/p.txt" >/dev/null
+  sleep 3
+  compare "$D/r.bin"
+  "$S/capture.sh" "$P" 5 >/dev/null
+  tty=$(ps -o tty= -p $$ | tr -d ' ')
+  if [[ $tty != '??' ]] && "$S/terminal.sh" close "$tty" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  "$S/terminal.sh" close "$P" >/dev/null; P=
+  echo "terminal ok"
 fi
 
 if command -v tmux >/dev/null; then

@@ -18,6 +18,15 @@ if [[ $pane =~ ^[0-9A-Fa-f-]{36}$ ]]; then
   "$(dirname "$0")/iterm.sh" send "$pane" "$prompt"
   exit 0
 fi
+if [[ $pane =~ ^ttys[0-9]+$ ]]; then
+  # Terminal.app tty id.
+  IFS='|' read -r worker job < <("$(dirname "$0")/terminal.sh" info "$pane") || { echo "Terminal tab not found" >&2; exit 1; }
+  [[ -n $worker ]] || { echo "target is not a coworker pane" >&2; exit 2; }
+  [[ $job == codex ]] || { echo "Codex not running in this pane yet or exited (job=${job:-none})" >&2; exit 1; }
+  mark
+  "$(dirname "$0")/terminal.sh" send "$pane" "$prompt"
+  exit 0
+fi
 [[ $pane =~ ^%[0-9]+$ ]] || { echo "invalid pane id" >&2; exit 2; }
 worker=$(tmux show-option -p -v -t "$pane" @coworker 2>/dev/null || true)
 [[ -n $worker ]] || { echo "target is not a coworker pane" >&2; exit 2; }
