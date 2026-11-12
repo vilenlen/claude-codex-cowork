@@ -104,6 +104,8 @@ on run argv
 			set ps to processes of t
 			if ps contains "codex" then
 				set job to "codex"
+			else if ps contains "claude-glink" then
+				set job to "claude-glink"
 			else if ps contains "claude" then
 				set job to "claude"
 			else if ps is {} then

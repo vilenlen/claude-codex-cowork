@@ -56,14 +56,16 @@ bash ~/.claude/skills/cowork/scripts/selfcheck.sh
 /cowork 让 Claude 实现这项修改，用 sonnet，你负责验收。
 ```
 
-脚本接口保持默认 Codex，增加 `--worker claude`；例如：
+脚本接口保持默认 Codex，支持 `--worker claude` 和显式入口 `--worker claude-glink`；例如：
 
 ```bash
 bash cowork/scripts/dispatch.sh fix-login "$PWD" -m sonnet --worker claude
+# 或直接使用 claude-glink，无需依赖 claude 别名
+bash cowork/scripts/dispatch.sh fix-login "$PWD" -m sonnet --worker claude-glink
 # capture.sh 确认输入框就绪后，再用 send.sh 发送任务文件
 ```
 
-Claude worker 沿用现有权限设置；通过会话级 hooks 返回完成、提问与错误状态，不修改全局设置。模型可显式指定 `sonnet`、`opus` 或账号可用的模型 ID。`--resume UUID` 支持两种 worker，`--search` 仅支持 Codex。Codex 作为 Lead 时，将 `cowork` 目录复制到 `~/.codex/skills/`，用 `$cowork` 调用。
+worker 启动前会加载 `${ZDOTDIR:-$HOME}/.zshrc`，使 `claude` / `codex` 的别名与环境设置生效（包括别名中指定的权限参数）。Claude worker 沿用现有权限设置；通过会话级 hooks 返回完成、提问与错误状态，不修改全局设置。模型可显式指定 `sonnet`、`opus` 或账号可用的模型 ID。`--resume UUID` 支持两种 worker，`--search` 仅支持 Codex。Codex 作为 Lead 时，将 `cowork` 目录复制到 `~/.codex/skills/`，用 `$cowork` 调用。
 
 从旧版本升级时，更新安装目录与 SessionStart hook 路径为 `cowork`；仍在运行的旧 `coworker` 窗口应先用旧脚本收取结果和保存恢复信息。
 

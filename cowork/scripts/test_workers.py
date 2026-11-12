@@ -36,7 +36,8 @@ class Workers(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='cowork test ') as temp:
             root = Path(temp)
             env = dict(os.environ, PATH=temp + ':' + os.environ['PATH'], TMPDIR=temp,
-                       TMUX='', ITERM_SESSION_ID='', TERM_PROGRAM='', CLAUDECODE='lead', TEST_ROOT=temp)
+                       TMUX='', ITERM_SESSION_ID='', TERM_PROGRAM='', CLAUDECODE='lead', TEST_ROOT=temp, ZDOTDIR=temp)
+            (root / '.zshrc').write_text('')
             cli = '''#!/usr/bin/env python3
 import json, os, pathlib, sys
 pathlib.Path(os.environ['TEST_ROOT'], 'args.json').write_text(json.dumps([sys.argv[1:], os.getenv('CLAUDECODE'), os.getenv('COWORK_WORKER')]))
@@ -78,6 +79,26 @@ if sys.argv[1] == 'new-session':
             self.assertIn('--search', args)
             self.assertFalse((base / '%42.sent').exists())
             self.assertFalse((base / '%42.last.md').exists())
+            # Native commands may be absent or broken: aliases defined by .zshrc must win.
+            (root / 'claude-glink').write_text(cli)
+            (root / 'claude-glink').chmod(0o755)
+            (root / '.zshrc').write_text("alias claude='claude-glink --dangerously-skip-permissions'\n")
+            result = dispatch('--worker', 'claude')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = json.loads((root / 'args.json').read_text())[0]
+            self.assertEqual(args[:3], ['--dangerously-skip-permissions', '--model', 'model with spaces'])
+            result = dispatch('--worker', 'claude-glink')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = json.loads((root / 'args.json').read_text())[0]
+            self.assertEqual(args[:2], ['--model', 'model with spaces'])
+            self.assertEqual((base / '%42.worker').read_text().splitlines()[0], 'claude')
+
+            # Shell metacharacters must survive as literal argument text.
+            literal = 'model "quotes" `backticks` $(touch SHOULD_NOT_EXIST); *'
+            result = subprocess.run(['zsh', str(HERE / 'worker-start.zsh'), 'claude', '--model', literal], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads((root / 'args.json').read_text())[0][-1], literal)
+
 
     def test_worker_does_not_become_lead(self):
         result = subprocess.run(['bash', str(HERE / 'session-start.sh')], env=dict(os.environ, COWORK_WORKER='1', TMUX='yes'), capture_output=True)

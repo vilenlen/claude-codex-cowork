@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Start an interactive worker split/window (auto-detected: tmux, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
-# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--effort <low|medium|high|xhigh>] [--worker codex|claude] [--search] [--resume <session-UUID>]
+# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--effort <low|medium|high|xhigh>] [--worker codex|claude|claude-glink] [--search] [--resume <session-UUID>]
 set -euo pipefail
-[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--worker codex|claude] [--search] [--resume <session-UUID>]" >&2; exit 2; }
+[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--worker codex|claude|claude-glink] [--search] [--resume <session-UUID>]" >&2; exit 2; }
 name=$1 dir=$2; shift 2
 [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad task name: $name" >&2; exit 2; }
 [[ -d $dir ]] || { echo "missing project dir" >&2; exit 2; }
@@ -13,7 +13,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 while [[ $# -gt 0 ]]; do
   case $1 in
     --worker)
-      [[ $# -ge 2 && $2 =~ ^(codex|claude)$ ]] || { echo "--worker requires codex|claude" >&2; exit 2; }
+      [[ $# -ge 2 && $2 =~ ^(codex|claude|claude-glink)$ ]] || { echo "--worker requires codex|claude|claude-glink" >&2; exit 2; }
       worker=$2; shift 2 ;;
     --search) search=1; shift ;;
     --effort)
@@ -26,17 +26,19 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1 (expected --search or --resume <session-UUID>)" >&2; exit 2 ;;
   esac
 done
+entry=$worker
+[[ $worker != claude-glink ]] || worker=claude
 if [[ $worker == claude ]]; then
   [[ -z $search ]] || { echo "--search is Codex-only; Claude uses its configured web tools" >&2; exit 2; }
   [[ $effort != minimal ]] || { echo "Claude does not support minimal effort" >&2; exit 2; }
 fi
-command -v "$worker" >/dev/null || { echo "$worker not found" >&2; exit 1; }
+command -v zsh >/dev/null || { echo "zsh not found" >&2; exit 1; }
 # A fresh launch record avoids stale results when a terminal reuses a pane/tty ID.
 base=${TMPDIR:-/tmp}/cowork
 mkdir -p "$base"
 launch=$(mktemp -d "$base/launch.XXXXXXXX")
 if [[ $worker == codex ]]; then
-  cmd='exec env COWORK_WORKER=1 codex'
+  cmd='codex'
   [[ -z $resume ]] || cmd+=' resume'
   printf -v cmd '%s -a never -s danger-full-access -m %q' "$cmd" "$model"
   [[ -z $search ]] || cmd+=' --search'
@@ -44,7 +46,7 @@ if [[ $worker == codex ]]; then
   [[ -z $resume ]] || cmd+=" $resume"
 else
   python3 -I "$here/claude-events.py" settings "$launch" > "$launch/settings.json"
-  printf -v cmd 'exec env -u CLAUDECODE COWORK_WORKER=1 claude --model %q --settings %q' "$model" "$launch/settings.json"
+  printf -v cmd '%s --model %q --settings %q' "$entry" "$model" "$launch/settings.json"
   [[ -z $effort ]] || cmd+=" --effort $effort"
   [[ -z $resume ]] || cmd+=" --resume $resume"
 fi
@@ -52,8 +54,8 @@ record() {
   rm -f "$base/$pane.sent" "$base/$pane.rollout" "$base/$pane.seen" "$base/$pane.last.md"
   printf '%s\n%s\n' "$worker" "$launch" > "$base/$pane.worker"
 }
-# Use bash without interactive aliases; never put the task in the startup command.
-printf -v shcmd 'exec bash -c %q' "$cmd"
+# Resolve aliases only after loading .zshrc in the worker shell.
+printf -v shcmd 'exec zsh %q %s' "$here/worker-start.zsh" "$cmd"
 hint='Check this pane with scripts/capture.sh <pane>, then use scripts/send.sh <pane> <prompt-file>.'
 
 if [[ -z ${TMUX:-} && -n ${ITERM_SESSION_ID:-} ]]; then
