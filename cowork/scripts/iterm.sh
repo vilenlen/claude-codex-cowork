@@ -25,7 +25,7 @@ on run argv
 							-- Layout like tmux main-vertical: first worker to the right of lead, later ones stacked under the last worker.
 							set lastWorker to missing value
 							repeat with x in sessions of t
-								tell x to set tag to variable named "user.coworker"
+								tell x to set tag to variable named "user.cowork"
 								if tag is not missing value then set lastWorker to x
 							end repeat
 							if lastWorker is missing value then
@@ -34,13 +34,13 @@ on run argv
 								tell lastWorker to set n to (split horizontally with default profile)
 							end if
 							tell n
-								set variable named "user.coworker" to (item 3 of argv)
-								set name to "codex:" & (item 3 of argv)
+								set variable named "user.cowork" to (item 3 of argv)
+								set name to "cowork:" & (item 3 of argv)
 								write text (item 4 of argv)
 							end tell
 							return id of n
 						else if act is "info" then
-							tell s to set {tag, job} to {variable named "user.coworker", variable named "jobName"}
+							tell s to set {tag, job} to {variable named "user.cowork", variable named "jobName"}
 							if tag is missing value then set tag to ""
 							if job is missing value then set job to ""
 							return tag & "|" & job
@@ -60,8 +60,8 @@ on run argv
 						else if act is "tty" then
 							return tty of s
 						else if act is "close" then
-							tell s to set tag to variable named "user.coworker"
-							if tag is missing value then error "not a coworker session: " & sid
+							tell s to set tag to variable named "user.cowork"
+							if tag is missing value then error "not a cowork session: " & sid
 							tell s to close
 							return "closed=" & sid
 						end if

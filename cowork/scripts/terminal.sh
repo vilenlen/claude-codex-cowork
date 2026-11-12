@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # macOS Terminal.app backend (AppleScript, no tmux). Terminal has no split panes, so each worker gets its own window
 # laid out like tmux main-vertical. Ids are tty names such as ttys005; a worker is tagged by a file named after its tty
-# under $TMPDIR/coworker/tags (a tab title cannot carry the tag: the shell prompt overwrites it).
+# under $TMPDIR/cowork/tags (a tab title cannot carry the tag: the shell prompt overwrites it).
 # Usage: terminal.sh split   <task-name> <shell-line>   -> new tty id (next to the window running this script)
 #        terminal.sh info    <id>                       -> "<worker-tag>|<job>"
 #        terminal.sh send    <id> <prompt-file>
@@ -11,7 +11,7 @@
 #        terminal.sh close   <id>                       -> closes a tagged worker window only
 set -euo pipefail
 [[ $# -ge 2 ]] || { echo "usage: $0 split|info|send|keys|capture|tty|close <id> ..." >&2; exit 2; }
-act=$1 tags=${TMPDIR:-/tmp}/coworker/tags
+act=$1 tags=${TMPDIR:-/tmp}/cowork/tags
 kill_tty() { ps -t "$2" -o pid= 2>/dev/null | xargs kill -"$1" 2>/dev/null || true; }
 if [[ $act == split ]]; then
   # Terminal exposes no session id, so find the lead's window by the tty of the nearest ancestor that has one.
@@ -25,7 +25,7 @@ if [[ $act == split ]]; then
   set -- split "$lead" "$2" "${3:?shell line required}" $workers
 else
   tag=$(cat "$tags/$2" 2>/dev/null || true)
-  [[ $act != close || -n $tag ]] || { echo "not a coworker session: $2" >&2; exit 2; }
+  [[ $act != close || -n $tag ]] || { echo "not a cowork session: $2" >&2; exit 2; }
   # Closing a window with a live process makes Terminal ask for confirmation; end the tty's processes first so it does not.
   # The window closes by itself once its shell dies, so a missing tab afterwards still means closed.
   [[ $act != close ]] || { kill_tty HUP "$2"; sleep 1; kill_tty KILL "$2"; sleep 1; rm -f "$tags/$2"; }
@@ -104,6 +104,8 @@ on run argv
 			set ps to processes of t
 			if ps contains "codex" then
 				set job to "codex"
+			else if ps contains "claude" then
+				set job to "claude"
 			else if ps is {} then
 				set job to ""
 			else

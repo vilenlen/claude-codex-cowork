@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# Start an interactive Codex split/window (auto-detected: tmux, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
-# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--effort <low|medium|high|xhigh>] [--search] [--resume <session-UUID>]
+# Start an interactive worker split/window (auto-detected: tmux, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
+# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--effort <low|medium|high|xhigh>] [--worker codex|claude] [--search] [--resume <session-UUID>]
 set -euo pipefail
-[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--search] [--resume <session-UUID>]" >&2; exit 2; }
+[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--worker codex|claude] [--search] [--resume <session-UUID>]" >&2; exit 2; }
 name=$1 dir=$2; shift 2
 [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad task name: $name" >&2; exit 2; }
 [[ -d $dir ]] || { echo "missing project dir" >&2; exit 2; }
 [[ $1 == -m && -n $2 ]] || { echo "explicit -m <model> is required" >&2; exit 2; }
 model=$2; shift 2
-search= resume= effort=
+search= resume= effort= worker=codex
+here=$(cd "$(dirname "$0")" && pwd)
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --worker)
+      [[ $# -ge 2 && $2 =~ ^(codex|claude)$ ]] || { echo "--worker requires codex|claude" >&2; exit 2; }
+      worker=$2; shift 2 ;;
     --search) search=1; shift ;;
     --effort)
       [[ $# -ge 2 && $2 =~ ^(minimal|low|medium|high|xhigh)$ ]] || { echo "--effort requires minimal|low|medium|high|xhigh" >&2; exit 2; }
@@ -22,13 +26,32 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown argument: $1 (expected --search or --resume <session-UUID>)" >&2; exit 2 ;;
   esac
 done
-command -v codex >/dev/null || { echo "codex not found" >&2; exit 1; }
-cmd='exec codex'
-[[ -z $resume ]] || cmd+=' resume'
-printf -v cmd '%s -a never -s danger-full-access -m %q' "$cmd" "$model"
-[[ -z $search ]] || cmd+=' --search'
-[[ -z $effort ]] || cmd+=" -c model_reasoning_effort=$effort"
-[[ -z $resume ]] || cmd+=" $resume"
+if [[ $worker == claude ]]; then
+  [[ -z $search ]] || { echo "--search is Codex-only; Claude uses its configured web tools" >&2; exit 2; }
+  [[ $effort != minimal ]] || { echo "Claude does not support minimal effort" >&2; exit 2; }
+fi
+command -v "$worker" >/dev/null || { echo "$worker not found" >&2; exit 1; }
+# A fresh launch record avoids stale results when a terminal reuses a pane/tty ID.
+base=${TMPDIR:-/tmp}/cowork
+mkdir -p "$base"
+launch=$(mktemp -d "$base/launch.XXXXXXXX")
+if [[ $worker == codex ]]; then
+  cmd='exec env COWORK_WORKER=1 codex'
+  [[ -z $resume ]] || cmd+=' resume'
+  printf -v cmd '%s -a never -s danger-full-access -m %q' "$cmd" "$model"
+  [[ -z $search ]] || cmd+=' --search'
+  [[ -z $effort ]] || cmd+=" -c model_reasoning_effort=$effort"
+  [[ -z $resume ]] || cmd+=" $resume"
+else
+  python3 -I "$here/claude-events.py" settings "$launch" > "$launch/settings.json"
+  printf -v cmd 'exec env -u CLAUDECODE COWORK_WORKER=1 claude --model %q --settings %q' "$model" "$launch/settings.json"
+  [[ -z $effort ]] || cmd+=" --effort $effort"
+  [[ -z $resume ]] || cmd+=" --resume $resume"
+fi
+record() {
+  rm -f "$base/$pane.sent" "$base/$pane.rollout" "$base/$pane.seen" "$base/$pane.last.md"
+  printf '%s\n%s\n' "$worker" "$launch" > "$base/$pane.worker"
+}
 # Use bash without interactive aliases; never put the task in the startup command.
 printf -v shcmd 'exec bash -c %q' "$cmd"
 hint='Check this pane with scripts/capture.sh <pane>, then use scripts/send.sh <pane> <prompt-file>.'
@@ -36,12 +59,14 @@ hint='Check this pane with scripts/capture.sh <pane>, then use scripts/send.sh <
 if [[ -z ${TMUX:-} && -n ${ITERM_SESSION_ID:-} ]]; then
   printf -v line 'cd %q && %s' "$dir" "$shcmd"
   pane=$("$(dirname "$0")/iterm.sh" split "${ITERM_SESSION_ID#*:}" "$name" "$line")
+  record
   printf 'pane=%s\n%s\n' "$pane" "$hint"
   exit 0
 fi
 if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Apple_Terminal ]]; then
   printf -v line 'cd %q && %s' "$dir" "$shcmd"
   pane=$("$(dirname "$0")/terminal.sh" split "$name" "$line")
+  record
   printf 'pane=%s\n%s\n' "$pane" "$hint"
   exit 0
 fi
@@ -57,10 +82,11 @@ if [[ -n ${TMUX:-} ]]; then
   fi
   tmux set -w -t "$win" main-pane-width 50% \; select-layout -t "$win" main-vertical >/dev/null
 else
-  session="codex-$name"
+  session="$worker-$name"
   pane=$(tmux new-session -d -P -F '#{pane_id}' -s "$session" -c "$dir" "$shcmd")
   printf 'attach: tmux attach-session -t %q\n' "$session"
 fi
-tmux select-pane -t "$pane" -T "codex:$name"
-tmux set-option -p -t "$pane" @coworker "$name"
+tmux select-pane -t "$pane" -T "$worker:$name"
+tmux set-option -p -t "$pane" @cowork "$name"
+record
 printf 'pane=%s\n%s\n' "$pane" "$hint"

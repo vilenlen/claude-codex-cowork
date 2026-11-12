@@ -1,12 +1,13 @@
 #!/usr/bin/env -S python3 -I
-"""Block until the Codex turn needs attention, then print ONE status line. Run in the background.
+"""Block until the worker turn needs attention, then print ONE status line. Run in the background.
 
 Usage: wait.py <pane-id> [timeout-seconds=3600]
 Status: completed | aborted | needs_input | stalled | exited | timeout.
 Details go to the file named by last=, never stdout: the final answer, the pending question (JSON) or the screen tail.
-Signal: Codex's rollout log; the pane is only peeked at (by this script, not the caller) once the log goes quiet.
+Signal: Codex rollout logs or Claude hook events; the pane is only peeked at (by this script, not the caller) once the log goes quiet.
 """
 import json, os, re, subprocess, sys, tempfile, time
+import importlib.util
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -86,12 +87,19 @@ def main():
     if len(sys.argv) not in (2, 3):
         sys.exit(__doc__)
     pane, timeout = sys.argv[1], int(sys.argv[2]) if len(sys.argv) == 3 else 3600
-    base = os.path.join(tempfile.gettempdir(), "coworker")
+    base = os.path.join(tempfile.gettempdir(), "cowork")
     with open(os.path.join(base, pane + ".sent"), encoding="utf-8") as f:
         sent, needle = (f.read().split("\n", 1) + [""])[:2]
     since = datetime.fromisoformat(sent.replace("Z", "+00:00")).timestamp() - 1
     cache, last, seen_file = (os.path.join(base, pane + ext) for ext in (".rollout", ".last.md", ".seen"))
+    worker_file = os.path.join(base, pane + ".worker")
+    worker, launch = open(worker_file).read().splitlines() if os.path.exists(worker_file) else ("codex", "")
+    spec = importlib.util.spec_from_file_location("claude_events", os.path.join(HERE, "claude-events.py"))
+    claude = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(claude)
     rollout = open(cache).read().strip() if os.path.exists(cache) else None
+    if worker == "claude":
+        rollout = os.path.join(launch, "events.jsonl")
     seen = set(open(seen_file).read().split()) if os.path.exists(seen_file) else set()
     t0, size, tick, quiet_since = time.time(), -1, 0, time.time()
 
@@ -103,17 +111,15 @@ def main():
 
     while time.time() - t0 < timeout:
         # Size check keeps polling cheap; the liveness call is rarer because it spawns osascript/tmux.
-        if tick % 3 == 0 and not pane_tty(pane):
-            done("exited")
-        if not rollout and needle.strip():
+        if worker == "codex" and not rollout and needle.strip():
             rollout = find_rollout(since, needle.strip())
             if rollout:
                 with open(cache, "w") as f:
                     f.write(rollout)
-        if rollout and os.path.getsize(rollout) != size:
+        if rollout and os.path.exists(rollout) and os.path.getsize(rollout) != size:
             size, quiet_since = os.path.getsize(rollout), time.time()
             with open(rollout) as f:
-                state = scan(f, sent, seen)
+                state = (claude.scan_events if worker == "claude" else scan)(f, sent, seen)
             if state and state[0] == "needs_input":
                 with open(seen_file, "a") as f:
                     f.write(json.loads(state[1])["call_id"] + "\n")
@@ -122,9 +128,11 @@ def main():
         elif time.time() - quiet_since > STALL:
             # Log silent: either a long command (screen shows "Working (") or a prompt Codex does not log.
             screen = run(os.path.join(HERE, "capture.sh"), pane, "25")
-            if "Working (" not in screen:
+            if worker == "claude" or "Working (" not in screen:
                 done("stalled", screen + "\n")
             quiet_since = time.time()
+        if tick % 3 == 0 and not pane_tty(pane):
+            done("exited")
         tick += 1
         time.sleep(POLL)
     done("timeout")

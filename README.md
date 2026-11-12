@@ -1,13 +1,13 @@
 # claude-codex-cowork
 
-让 **Claude Code 当 Team Lead，本机 Codex CLI 当工程师**。Claude 拆解任务、选择模型、协调进度和验收；Codex 在旁边的终端窗口里完成调查、编码、测试与排障。
+让 **Claude Code 或 Codex 当 Team Lead，本机 Codex CLI 或 Claude Code 当 worker**。Lead 拆解任务、选择模型、协调进度和验收；worker 在旁边的终端窗口里完成调查、编码、测试与排障。
 
-Skill 名称是 **`coworker`**，在 Claude Code 中用 `/coworker` 调用。
+Skill 名称是 **`cowork`**，在 Claude Code 中用 `/cowork` 调用。
 
 ## 能做什么
 
-- **分屏协作**：支持 tmux、iTerm2 分屏和 Terminal.app 并排窗口，可同时安排多个 Codex 处理独立任务。
-- **节省 Claude 上下文**：后台等待 Codex，只回传终态和必要结论，避免持续读入过程输出。
+- **分屏协作**：支持 tmux、iTerm2 分屏和 Terminal.app 并排窗口，可同时安排多个 Codex / Claude worker 处理独立任务。
+- **节省 Claude 上下文**：后台等待 worker，只回传终态和必要结论，避免持续读入过程输出。
 - **持续跟进**：Claude 处理有依据的技术提问，验收不通过就反馈给原窗口继续；业务决策或授权问题交给你。
 - **回收与恢复**：超过 4 个 worker 窗口时检查闲置项，保存恢复信息后关闭暂时不用的窗口，需要时恢复原会话。运行中或等待回答的窗口保留。
 
@@ -19,8 +19,8 @@ Skill 名称是 **`coworker`**，在 Claude Code 中用 `/coworker` 调用。
 
 ```bash
 mkdir -p ~/.claude/skills
-cp -R coworker ~/.claude/skills/
-bash ~/.claude/skills/coworker/scripts/selfcheck.sh
+cp -R cowork ~/.claude/skills/
+bash ~/.claude/skills/cowork/scripts/selfcheck.sh
 ```
 
 <details>
@@ -32,7 +32,7 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/coworker/scripts/session-start.sh" }] }
+      { "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/cowork/scripts/session-start.sh" }] }
     ]
   }
 }
@@ -45,10 +45,27 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 在 Claude Code 中直接描述目标、修改范围和验收要求，例如：
 
 ```text
-/coworker 修复登录超时，只改认证模块，跑通相关测试。你负责拆解和验收，让 Codex 实现。
+/cowork 修复登录超时，只改认证模块，跑通相关测试。你负责拆解和验收，让 Codex 实现。
 ```
 
-也可以说「派给 Codex」「让 Codex 做」「并行开几个 Codex」。Claude 会负责启动窗口、确认就绪、发送任务、等待结果和验收，你不必手动执行脚本。
+也可以说「让 Claude 做」「派给 Codex」「让 Codex 做」「并行开几个 Codex」。Claude 会负责启动窗口、确认就绪、发送任务、等待结果和验收，你不必手动执行脚本。
+
+也可以指定 Claude worker：
+
+```text
+/cowork 让 Claude 实现这项修改，用 sonnet，你负责验收。
+```
+
+脚本接口保持默认 Codex，增加 `--worker claude`；例如：
+
+```bash
+bash cowork/scripts/dispatch.sh fix-login "$PWD" -m sonnet --worker claude
+# capture.sh 确认输入框就绪后，再用 send.sh 发送任务文件
+```
+
+Claude worker 沿用现有权限设置；通过会话级 hooks 返回完成、提问与错误状态，不修改全局设置。模型可显式指定 `sonnet`、`opus` 或账号可用的模型 ID。`--resume UUID` 支持两种 worker，`--search` 仅支持 Codex。Codex 作为 Lead 时，将 `cowork` 目录复制到 `~/.codex/skills/`，用 `$cowork` 调用。
+
+从旧版本升级时，更新安装目录与 SessionStart hook 路径为 `cowork`；仍在运行的旧 `coworker` 窗口应先用旧脚本收取结果和保存恢复信息。
 
 ## 使用建议
 
@@ -59,4 +76,4 @@ bash ~/.claude/skills/coworker/scripts/selfcheck.sh
 
 Codex 默认以 `-a never -s danger-full-access` 启动，拥有完整文件系统访问权限，请在可信项目中使用。发布、推送等操作仍需你的授权。
 
-完整流程、恢复命令与脚本说明见 [`coworker/SKILL.md`](coworker/SKILL.md)。
+完整流程、恢复命令与脚本说明见 [`cowork/SKILL.md`](cowork/SKILL.md)。

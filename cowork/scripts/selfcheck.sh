@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Self-check for available backends: opens raw-tty panes (no Codex) and asserts byte fidelity, capture and guards.
+# Self-check for available backends: opens raw-tty panes (no model calls) and asserts byte fidelity, capture and guards.
 set -euo pipefail
 S=$(cd "$(dirname "$0")" && pwd)
 expect_dispatch_error() {
@@ -10,6 +10,7 @@ expect_dispatch_error() {
 expect_dispatch_error --resume invalid-uuid
 expect_dispatch_error --resume
 expect_dispatch_error --unknown
+python3 -I "$S/test_workers.py"
 
 D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
 trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || "$S/terminal.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
@@ -88,7 +89,7 @@ if command -v tmux >/dev/null; then
   T=$(tmux new-session -d -P -F '#{pane_id}' -s "$ts" "stty raw -echo; exec cat > $D/t.bin")
   sleep 1
   if "$S/send.sh" "$T" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted untagged tmux pane" >&2; exit 1; fi
-  tmux set-option -p -t "$T" @coworker selfcheck
+  tmux set-option -p -t "$T" @cowork selfcheck
   "$S/send.sh" "$T" "$D/p.txt" >/dev/null
   sleep 2
   compare "$D/t.bin"
