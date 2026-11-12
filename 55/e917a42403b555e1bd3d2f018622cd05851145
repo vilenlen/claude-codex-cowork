@@ -1,0 +1,40 @@
+README.md
+  s_c456e92603f4fd::t_c91bd6e3543723 68
+  s_c456e92603f4fd::t_0f2b3c34c6d05e 59,63-64
+cowork/scripts/test_workers.py
+  s_c456e92603f4fd::t_58d276e730b025 39-40,82-89,96-101
+  s_c456e92603f4fd::t_4d91a50d55e4b7 90-95
+cowork/scripts/dispatch.sh
+  s_c456e92603f4fd::t_58d276e730b025 35,41,57-58
+  s_c456e92603f4fd::t_4d91a50d55e4b7 3,5,16,29-30,49
+cowork/scripts/send.sh
+  s_c456e92603f4fd::t_4d91a50d55e4b7 16,25
+cowork/scripts/worker-start.zsh
+  s_c456e92603f4fd::t_58d276e730b025 1-8,10,12-14,16
+  s_c456e92603f4fd::t_4d91a50d55e4b7 9,11
+  s_c456e92603f4fd::t_c91bd6e3543723 15,17
+cowork/SKILL.md
+  s_c456e92603f4fd::t_c91bd6e3543723 28
+  s_c456e92603f4fd::t_f5755d07ddfea0 17,32
+cowork/references/claude.md
+  s_c456e92603f4fd::t_c91bd6e3543723 7
+  s_c456e92603f4fd::t_bcbbd447a453e9 6,18
+cowork/scripts/terminal.sh
+  s_c456e92603f4fd::t_4d91a50d55e4b7 107-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "55e917a42403b555e1bd3d2f018622cd05851145",
+  "prompts": {},
+  "sessions": {
+    "s_c456e92603f4fd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1cdee-7210-72e1-9bdc-ede30357d8fd",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
