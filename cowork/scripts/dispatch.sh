@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Start an interactive worker split/window (auto-detected: tmux, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
-# Usage: dispatch.sh <task-name> <project-dir> -m <model> [--effort <low|medium|high|xhigh>] [--worker codex|claude|claude-glink] [--search] [--resume <session-UUID>]
+# Usage: dispatch.sh <task-name> <project-dir> [-m <model>] [--effort <low|medium|high|xhigh>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]
 set -euo pipefail
-[[ $# -ge 4 ]] || { echo "usage: $0 <task-name> <project-dir> -m <model> [--worker codex|claude|claude-glink] [--search] [--resume <session-UUID>]" >&2; exit 2; }
+[[ $# -ge 2 ]] || { echo "usage: $0 <task-name> <project-dir> [-m <model>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]" >&2; exit 2; }
 name=$1 dir=$2; shift 2
 [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad task name: $name" >&2; exit 2; }
 [[ -d $dir ]] || { echo "missing project dir" >&2; exit 2; }
-[[ $1 == -m && -n $2 ]] || { echo "explicit -m <model> is required" >&2; exit 2; }
-model=$2; shift 2
-search= resume= effort= worker=codex
+model= search= resume= effort= worker=cla
 here=$(cd "$(dirname "$0")" && pwd)
 while [[ $# -gt 0 ]]; do
   case $1 in
+    -m)
+      [[ $# -ge 2 && -n $2 && $2 != -* ]] || { echo "-m requires a model" >&2; exit 2; }
+      model=$2; shift 2 ;;
     --worker)
-      [[ $# -ge 2 && $2 =~ ^(codex|claude|claude-glink)$ ]] || { echo "--worker requires codex|claude|claude-glink" >&2; exit 2; }
+      [[ $# -ge 2 && $2 =~ ^(cla|codex|claude|claude-glink)$ ]] || { echo "--worker requires cla|codex|claude|claude-glink" >&2; exit 2; }
       worker=$2; shift 2 ;;
     --search) search=1; shift ;;
     --effort)
@@ -23,12 +24,15 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "--resume requires a session UUID" >&2; exit 2; }
       [[ $2 =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]] || { echo "bad session UUID: $2" >&2; exit 2; }
       resume=$2; shift 2 ;;
-    *) echo "unknown argument: $1 (expected --search or --resume <session-UUID>)" >&2; exit 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 entry=$worker
-[[ $worker != claude-glink ]] || worker=claude
-if [[ $worker == claude ]]; then
+[[ $worker == codex ]] || worker=claude
+if [[ $worker == codex ]]; then
+  [[ -n $model ]] || { echo "explicit -m <model> is required for codex" >&2; exit 2; }
+else
+  model=${model:-opus}
   [[ -z $search ]] || { echo "--search is Codex-only; Claude uses its configured web tools" >&2; exit 2; }
   [[ $effort != minimal ]] || { echo "Claude does not support minimal effort" >&2; exit 2; }
 fi

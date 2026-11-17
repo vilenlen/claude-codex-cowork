@@ -37,9 +37,11 @@ class Workers(unittest.TestCase):
             root = Path(temp)
             env = dict(os.environ, PATH=temp + ':' + os.environ['PATH'], TMPDIR=temp,
                        TMUX='', ITERM_SESSION_ID='', TERM_PROGRAM='', CLAUDECODE='lead', TEST_ROOT=temp, ZDOTDIR=temp)
-            (root / '.zshrc').write_text('')
+            (root / '.zshrc').write_text("alias cla='claude-glink --permission-mode bypassPermissions --add-dir \"alias dir\"'\n")
             cli = '''#!/usr/bin/env python3
 import json, os, pathlib, sys
+if any(flag in sys.argv for flag in ('--yolo', '--dangerously-bypass-approvals-and-sandbox')) and any(flag in sys.argv for flag in ('-a', '-s')):
+ sys.exit('bypass conflicts with -a/-s')
 pathlib.Path(os.environ['TEST_ROOT'], 'args.json').write_text(json.dumps([sys.argv[1:], os.getenv('CLAUDECODE'), os.getenv('COWORK_WORKER')]))
 '''
             tmux = '''#!/usr/bin/env python3
@@ -48,19 +50,37 @@ if sys.argv[1] == 'new-session':
  subprocess.run(['bash', '-c', sys.argv[-1]], check=True)
  print('%42')
 '''
-            for name, body in [('claude', cli), ('codex', cli), ('tmux', tmux)]:
+            for name, body in [('claude', cli), ('claude-glink', cli), ('cla', '#!/bin/sh\nexit 99\n'), ('codex', cli), ('tmux', tmux)]:
                 (root / name).write_text(body)
                 (root / name).chmod(0o755)
             uuid = '12345678-1234-1234-1234-123456789abc'
-            def dispatch(*args):
-                return subprocess.run(['bash', str(HERE / 'dispatch.sh'), 'test', temp, '-m', 'model with spaces', *args], env=env, capture_output=True, text=True)
-            for args in [('--worker', 'bad'), ('--worker',), ('--worker', 'claude', '--search'), ('--worker', 'claude', '--effort', 'minimal')]:
-                self.assertEqual(dispatch(*args).returncode, 2)
-            result = dispatch('--worker', 'claude', '--resume', uuid, '--effort', 'high')
+            def dispatch(*args, model='model with spaces'):
+                model_args = [] if model is None else ['-m', model]
+                return subprocess.run(['bash', str(HERE / 'dispatch.sh'), 'test', temp, *model_args, *args], cwd=temp, env=env, capture_output=True, text=True)
+            for args in [('--worker', 'bad'), ('--worker',), ('--worker', 'codex'), ('-m',), ('-m', ''), ('-m', '--search'), ('--search',), ('--effort', 'minimal'), ('--worker', 'claude', '--search'), ('--worker', 'claude', '--effort', 'minimal')]:
+                result = dispatch(*args, model=None)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertFalse((root / 'args.json').exists(), 'invalid arguments launched a worker')
+            alias_args = ['--permission-mode', 'bypassPermissions', '--add-dir', 'alias dir']
+            for options, model in [((), 'opus'), (('--worker', 'cla'), 'opus'), (('-m', 'sonnet'), 'sonnet'), (('--worker', 'cla', '-m', 'custom model'), 'custom model')]:
+                result = dispatch(*options, model=None)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args, nested, worker = json.loads((root / 'args.json').read_text())
+                self.assertEqual(args[:6], alias_args + ['--model', model])
+                self.assertIsNone(nested)
+                self.assertEqual(worker, '1')
+                self.assertEqual((root / 'cowork' / '%42.worker').read_text().splitlines()[0], 'claude')
+            for entry in ('claude', 'claude-glink'):
+                result = dispatch('--worker', entry, model=None)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads((root / 'args.json').read_text())[0][:2], ['--model', 'opus'])
+            result = dispatch('--resume', uuid, '--effort', 'high')
             self.assertEqual(result.returncode, 0, result.stderr)
             args, nested, worker = json.loads((root / 'args.json').read_text())
             self.assertIsNone(nested)
             self.assertEqual(worker, '1')
+            self.assertEqual(args[:4], alias_args)
+            args = args[4:]
             self.assertEqual(args[:2], ['--model', 'model with spaces'])
             self.assertEqual(args[-4:], ['--effort', 'high', '--resume', uuid])
             settings = json.loads(Path(args[3]).read_text())
@@ -72,17 +92,18 @@ if sys.argv[1] == 'new-session':
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('status=completed', result.stdout)
             self.assertEqual((base / '%42.last.md').read_text(), '完成\n`literal` $(text)')
-            result = dispatch('--search', '--resume', uuid)
+            result = dispatch('--worker', 'codex', '--search', '--resume', uuid)
             self.assertEqual(result.returncode, 0, result.stderr)
             args = json.loads((root / 'args.json').read_text())[0]
             self.assertEqual(args[:5], ['resume', '-a', 'never', '-s', 'danger-full-access'])
+            self.assertEqual(args[5:7], ['-m', 'model with spaces'])
             self.assertIn('--search', args)
+            self.assertEqual((base / '%42.worker').read_text().splitlines()[0], 'codex')
             self.assertFalse((base / '%42.sent').exists())
             self.assertFalse((base / '%42.last.md').exists())
             # Native commands may be absent or broken: aliases defined by .zshrc must win.
-            (root / 'claude-glink').write_text(cli)
-            (root / 'claude-glink').chmod(0o755)
-            (root / '.zshrc').write_text("alias claude='claude-glink --dangerously-skip-permissions'\n")
+            with (root / '.zshrc').open('a') as rc:
+                rc.write("alias claude='claude-glink --dangerously-skip-permissions'\n")
             result = dispatch('--worker', 'claude')
             self.assertEqual(result.returncode, 0, result.stderr)
             args = json.loads((root / 'args.json').read_text())[0]
@@ -95,9 +116,35 @@ if sys.argv[1] == 'new-session':
 
             # Shell metacharacters must survive as literal argument text.
             literal = 'model "quotes" `backticks` $(touch SHOULD_NOT_EXIST); *'
-            result = subprocess.run(['zsh', str(HERE / 'worker-start.zsh'), 'claude', '--model', literal], env=env, capture_output=True, text=True)
+            result = subprocess.run(['zsh', str(HERE / 'worker-start.zsh'), 'cla', '--model', literal], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads((root / 'args.json').read_text())[0][-1], literal)
+
+            # Exercise the real dispatch/start boundary using only local CLI/tmux stubs.
+            wrapped = root / 'codex current'
+            wrapped.write_text(cli)
+            wrapped.chmod(0o755)
+            literal = 'model with spaces\n"quotes" \'single\' $(touch SHOULD_NOT_EXIST) `backticks`; *'
+            defaults = ['-a', 'never', '-s', 'danger-full-access']
+            for kind in ('command', 'alias', 'function'):
+                for flag in ('', '--yolo', '--dangerously-bypass-approvals-and-sandbox'):
+                    if kind == 'command' and flag:
+                        continue
+                    with self.subTest(kind=kind, flag=flag):
+                        if kind == 'alias':
+                            rc = f'alias codex=\'"$TEST_ROOT/codex current" {flag}\'\n'
+                        elif kind == 'function':
+                            rc = f'codex () {{ "$TEST_ROOT/codex current" {flag} "$@"; }}\n'
+                        else:
+                            rc = ''
+                        (root / '.zshrc').write_text(rc)
+                        (root / 'args.json').unlink(missing_ok=True)
+                        result = dispatch('--worker', 'codex', '--search', '--effort', 'high', '--resume', uuid, model=literal)
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        args = json.loads((root / 'args.json').read_text())[0]
+                        expected = ([flag] if flag else []) + ['resume'] + ([] if flag else defaults)
+                        self.assertEqual(args, expected + ['-m', literal, '--search', '-c', 'model_reasoning_effort=high', uuid])
+                        self.assertFalse((root / 'SHOULD_NOT_EXIST').exists())
 
 
     def test_worker_does_not_become_lead(self):

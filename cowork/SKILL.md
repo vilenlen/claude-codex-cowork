@@ -14,8 +14,13 @@ description: Team Lead 模式：当前助手作为 Lead 拆解任务、做关键
 - 结果不符时向原 worker 窗口发送反馈继续处理，不自己默默重写。
 
 ## Worker 选择
-默认 `--worker codex`，指定 `--worker claude` 使用 Claude Code，`--worker claude-glink` 直接使用 claude-glink 入口；两种 worker 可混用，Lead 不限于 Claude。
-Claude 专属启动、事件和提问处理见 [references/claude.md](references/claude.md)，选择 Claude 时先读。下文涉及 Codex 模型、rollout、问题菜单和权限参数的内容仅适用于 Codex。
+默认 `--worker cla`，先 source 用户 zsh 配置，再解析 `aliases[cla]`，完整保留 alias 参数，不硬编码展开结果。可显式选择 `--worker claude`、`--worker claude-glink` 或 `--worker codex`；worker 可混用，Lead 不限于 Claude。
+`cla`、`claude`、`claude-glink` 共用 Claude 事件协议和就绪判断；启动、事件和提问处理见 [references/claude.md](references/claude.md)，选择 Claude 时先读。下文涉及 Codex 模型、rollout、问题菜单和权限参数的内容仅适用于 Codex。
+
+## Claude 默认模型
+- 常规任务默认 `opus`；快速任务（简单修改、冒烟、结果核对）默认选择 `sonnet`，启动时传 `-m sonnet`。
+- Claude 入口省略 `-m` 时传 `--model opus`，等效于在会话中选择 `/model opus`；显式 `-m <模型>` 覆盖默认值，不修改用户全局模型配置。
+- 已有窗口切换模型时，使用 `/model opus`、`/model sonnet` 或指定模型，并确认切换成功、输入框就绪后再发任务；复用窗口不会自动切换模型。
 
 ## Codex 模型
 新建窗口显式传 `-m`，漏参启动前报错。续接使用原窗口及其当前模型；需要按阶段切换时，在 Codex 内使用 `/model` 并确认切换成功后再发送任务。
@@ -25,11 +30,11 @@ Claude 专属启动、事件和提问处理见 [references/claude.md](references
 | 复杂分析、架构、根因、跨模块实现 | `gpt-6-astra` |
 | 简单任务、发布、冒烟、回放验收、结果核对 | `gpt-6.1-sol` |
 
-每个 Claude 会话首次使用前检查 `codex login status`。模型是否可用以交互窗口实际结果为准；不可用时停下问用户，不自行替换。worker 由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后启动，遵循用户配置的 `codex` / `claude` 别名和环境变量；检查登录状态时也使用同一入口。
+每个 Lead 会话首次使用 Codex 前检查 `codex login status`。模型是否可用以交互窗口实际结果为准；不可用时停下问用户，不自行替换。worker 由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后启动，遵循用户配置的 `cla` / `codex` / `claude` / `claude-glink` 别名和环境变量；检查登录状态时也使用同一入口。
 
 ## 启动后再发任务（固定顺序）
 1. 将任务正文写入本地 UTF-8 文件，保留换行，不拼入 shell 命令。**第一行必须是任务标题，且以 `【CC指派】` 开头**（如 `【CC指派】修复登录超时`）；后续补充、验收反馈、新任务同样适用。`send.sh`/`wait.py` 靠首行定位会话日志，所以标题要放在首行且不要留空行在前。
-2. 执行 `scripts/dispatch.sh <name> <dir> -m <模型> [--worker codex|claude|claude-glink] [--effort <级别>] [--search]`。脚本启动所选交互式 worker（默认 `codex -a never -s danger-full-access -m <模型>`，Claude 参数见专属说明），此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID，Terminal.app 为 `ttysNNN`）。自动识别当前终端：在 tmux 内用 tmux 分屏；否则 iTerm2 内用 iTerm2 分屏；否则 Terminal.app 内为每个 worker 开并排窗口（Terminal 无分屏，需在「系统设置 → 隐私与安全性 → 自动化」允许控制「终端」）；都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Lead 右侧，之后的叠在上一个 worker 下方。启动前后按「闲置窗口回收」检查数量。
+2. 执行 `scripts/dispatch.sh <name> <dir> [-m <模型>] [--worker cla|codex|claude|claude-glink] [--effort <级别>] [--search]`。脚本启动所选交互式 worker（默认通过 `cla` alias 启动并传 `--model opus`；快速任务加 `-m sonnet`；Codex 必须指定 `--worker codex -m <模型>`，默认使用 `-a never -s danger-full-access`，入口自带 bypass 旗标时省略这两个默认参数），此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID，Terminal.app 为 `ttysNNN`）。自动识别当前终端：在 tmux 内用 tmux 分屏；否则 iTerm2 内用 iTerm2 分屏；否则 Terminal.app 内为每个 worker 开并排窗口（Terminal 无分屏，需在「系统设置 → 隐私与安全性 → 自动化」允许控制「终端」）；都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Lead 右侧，之后的叠在上一个 worker 下方。启动前后按「闲置窗口回收」检查数量。
 3. 用 `scripts/capture.sh <窗口ID> 80` 查看该窗口。Codex 必须确认状态栏显示模型名和 `Ready`；Claude 必须确认模型与输入框已就绪，且没有登录、目录信任、模型错误或其他待处理提示；启动失败或状态不明时不要发送任务。尚在启动时可短暂等待后再确认，不能仅凭固定延时认定就绪。
 4. 执行 `scripts/send.sh <窗口ID> <prompt文件>`，以 bracketed paste 向已启动的 worker 窗口粘贴完整任务，再按 Enter 提交。任务中的引号、反引号、`$()` 和多行正文必须按字面传入。
 5. 补充材料、验收反馈和后续任务仍发送到原 `<窗口ID>` 窗口；发送前确认上一轮已结束且输入框可用。窗口退出时先核实原任务结果，再按「恢复已关闭的窗口」恢复会话，或重新启动。
@@ -45,7 +50,7 @@ Claude 专属启动、事件和提问处理见 [references/claude.md](references
 
 ## 恢复已关闭的窗口
 - 优先使用回收时保存的会话 UUID 和恢复命令。没有记录时，用任务标题查会话：`rg -l -F -- '<任务标题>' ~/.codex/sessions`。文件名 `rollout-<时间>-<UUID>.jsonl` 末尾的 UUID 即会话 UUID；搜索命中后核对工作目录和任务内容，多条匹配时不能直接把最后一条当作目标。
-- 执行 `scripts/dispatch.sh <name> <原工作目录> -m <原模型> --resume <UUID>`，在新分屏恢复原会话及上下文；可同时传 `--search`，两个可选参数顺序不限，`-m` 仍必填。
+- Codex 执行 `scripts/dispatch.sh <name> <原工作目录> --worker codex -m <原模型> --resume <UUID>`，在新分屏恢复原会话及上下文；可同时传 `--search`，参数顺序不限，`-m` 仍必填。Claude 按专属说明保留原入口和模型恢复。
 - 记录新返回的窗口 ID，旧 ID 作废；按原流程用 `capture.sh` 确认 `Ready`，再用 `send.sh` 发任务并立即挂 `wait.py`。
 - 同一会话不要同时开两个窗口。
 
@@ -64,7 +69,7 @@ Worker 的过程输出不进 Lead 上下文。等待交给后台脚本，Lead �
 - 失败或中断：报告实际原因，带具体反馈续接原窗口。需要用户回答时保留问题与窗口，收到回答后续接。
 - 对同一回合重跑 `wait.py` 会再次返回已有终态，可以用它重复读取结果。
 - 状态未知：先核实原操作是否已生效，再决定重试，避免重复发布或写入。
-- 启动固定使用用户要求的 `-a never -s danger-full-access`；具体任务仍遵守已有授权范围，发布、推送等操作不因启动参数而自动获得授权。
+- Codex 启动默认使用用户要求的 `-a never -s danger-full-access`；若用户 `codex` alias（优先）或 function 定义中直接包含 `--yolo` / `--dangerously-bypass-approvals-and-sandbox`，省略默认 `-a/-s`，仍调用原入口。此检测只支持直接、无条件传入字面旗标的包装器，不解析任意 shell：变量拼接、间接调用或条件分支不受支持，定义中仅作为字符串出现的旗标也可能误匹配；不会执行入口来探测权限参数。Claude 保留所选入口的 alias 参数。具体任务仍遵守已有授权范围，发布、推送等操作不因启动参数而自动获得授权。
 
 ## Codex 中途提问（needs_input）
 `last=` 文件是一行 JSON：`kind`、`call_id`、`questions`（题目、选项、说明）。按 `kind` 作答：
