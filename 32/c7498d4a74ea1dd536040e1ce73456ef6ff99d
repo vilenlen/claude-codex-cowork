@@ -1,0 +1,27 @@
+cowork/scripts/test_workers.py
+  s_85af6d46f3bbb3::t_d7d51864196469 43-44,123-147
+  s_85af6d46f3bbb3::t_776f14897a0d32 59
+  s_85af6d46f3bbb3::t_725a4da6e4ccfe 40,53,57-58,60-77,82-83,95,99,101,105-106,119,148
+cowork/scripts/worker-start.zsh
+  s_85af6d46f3bbb3::t_aba0cfdc237641 15-17
+  s_85af6d46f3bbb3::t_47de73c2ca889d 18-20
+cowork/SKILL.md
+  s_85af6d46f3bbb3::t_06632367db3ae4 37,53,72
+  s_85af6d46f3bbb3::t_16c35a854c1b9e 17-23,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "32c7498d4a74ea1dd536040e1ce73456ef6ff99d",
+  "prompts": {},
+  "sessions": {
+    "s_85af6d46f3bbb3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e772-c22b-7c63-9cc4-c9d3636b9927",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
