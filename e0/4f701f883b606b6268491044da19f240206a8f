@@ -1,0 +1,49 @@
+cowork/scripts/session-start.sh
+  s_b436d024381cc2::t_2f18e9d3cbfec2 4,6
+cowork/scripts/orca.sh
+  s_b436d024381cc2::t_34f503d3376955 1-28,30-37,42-49,51-59,62-84,86-105
+  s_b436d024381cc2::t_6bffd5788a437c 29
+  s_b436d024381cc2::t_319177615b0468 38-39
+  s_b436d024381cc2::t_840ba565732803 85
+  s_b436d024381cc2::t_2607e348fb492d 40-41,50
+  s_b436d024381cc2::t_a4604524f4ce1a 60-61
+cowork/scripts/answer.sh
+  s_b436d024381cc2::t_53cc39287216e8 17,19-22
+  s_b436d024381cc2::t_0947240a8ac746 18
+cowork/references/claude.md
+  s_b436d024381cc2::t_8e632b36e1a9e2 8
+cowork/scripts/wait.py
+  s_b436d024381cc2::t_5cfb702afee664 27-28
+cowork/scripts/selfcheck.sh
+  s_b436d024381cc2::t_ec283c90adfb9a 93
+  s_b436d024381cc2::t_94d1b8dad3b43e 88-91,95-115
+  s_b436d024381cc2::t_78d38a7e99c606 92,94
+  s_b436d024381cc2::t_367334b1974b6d 16
+cowork/SKILL.md
+  s_b436d024381cc2::t_137ad15889218b 3
+  s_b436d024381cc2::t_0f8fc25a5c4e48 94-95
+  s_b436d024381cc2::t_56917bfbaab8cf 37
+cowork/scripts/send.sh
+  s_b436d024381cc2::t_e56a9a0d396abc 22-23,25
+  s_b436d024381cc2::t_47ef821ff588ba 21,24,26-30
+cowork/scripts/dispatch.sh
+  s_b436d024381cc2::t_ccd9f3e6275821 65-71
+cowork/scripts/capture.sh
+  s_b436d024381cc2::t_39940ff4bfbf3e 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e04f701f883b606b6268491044da19f240206a8f",
+  "prompts": {},
+  "sessions": {
+    "s_b436d024381cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8c0cfa3-b234-459c-8eed-40eafe606579",
+        "model": "codefuse-glm-1m/glink/GLM-5.3:glink_domestic"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
