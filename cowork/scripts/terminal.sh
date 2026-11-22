@@ -115,8 +115,15 @@ on run argv
 			end if
 			return job
 		else if act is "send" then
-			-- Bracketed paste keeps multiline text and shell metacharacters as one input message; Terminal appends the Enter.
+			-- Bracketed paste keeps multiline text and shell metacharacters as one input message.
+			-- do script always appends a Return right after typing, and a young worker TUI drains
+			-- queued stdin in one batch, taking that glued CR as a composer newline instead of the
+			-- submit key. So paste once, then press Enter again a second later via an empty
+			-- do script (Return alone); the TUI ignores Enter on an empty composer, so the extra
+			-- Return is idle when the first one already submitted.
 			do script (esc & "[200~" & body & esc & "[201~") in t
+			delay 1
+			do script "" in t
 			return "sent_to=" & sid
 		else if act is "keys" then
 			do script body in t

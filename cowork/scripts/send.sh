@@ -48,8 +48,12 @@ mark
 buffer="cowork-$$"
 trap 'tmux delete-buffer -b "$buffer" 2>/dev/null || true' EXIT
 # Bracketed paste keeps multiline text and shell metacharacters as one input message.
+# The Enter must be its own input write well after the paste: a young worker TUI drains
+# queued stdin in one batch and takes a CR glued to the paste as a composer newline
+# instead of the submit key. The TUI ignores Enter on an empty composer, so the later
+# Enter is harmless when the paste's arrival already looked complete.
 tmux load-buffer -b "$buffer" "$prompt"
 tmux paste-buffer -r -p -b "$buffer" -t "$pane"
-sleep 0.3
+sleep 1
 tmux send-keys -t "$pane" Enter
 printf 'sent_to=%s\n' "$pane"

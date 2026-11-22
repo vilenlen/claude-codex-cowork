@@ -69,9 +69,16 @@ info)
   ;;
 send)
   [[ $# -eq 3 ]] || { echo "usage: $0 send <handle> <prompt-file>" >&2; exit 2; }
+  # --enter writes the text and the CR in the same burst, and a young worker TUI drains
+  # queued stdin in one batch, taking that glued CR as a composer newline instead of the
+  # submit key. So type the bracketed paste as raw bytes (the verbatim --text path keys
+  # uses), then press Enter as its own write a second later; the TUI ignores Enter on an
+  # empty composer if the paste is ever processed faster.
   # Trailing newlines of the file are lost to command substitution; the appended Enter submits the prompt anyway.
-  payload=$(cat "$3")
-  cli terminal send --terminal "$handle" --text "$payload" --enter >/dev/null
+  pasted=$(printf '\033[200~%s\033[201~' "$(cat "$3")")
+  cli terminal send --terminal "$handle" --text "$pasted" >/dev/null
+  sleep 1
+  cli terminal send --terminal "$handle" --text $'\r' >/dev/null
   printf 'sent_to=%s\n' "$handle"
   ;;
 keys)

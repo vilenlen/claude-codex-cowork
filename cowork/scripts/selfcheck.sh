@@ -24,7 +24,9 @@ compare() { python3 -I - "$D/p.txt" "$1" <<'PY'
 import sys
 want, got = (open(f, 'rb').read() for f in sys.argv[1:3])
 assert got.endswith(b'\r'), 'Enter missing'
-got = got[:-1]
+# Terminal.app pairs the paste with its own do-script Return before the delayed Enter,
+# so any number of trailing CRs may follow the paste before the payload itself.
+got = got.rstrip(b'\r')
 if got.startswith(b'\x1b[200~'): got = got[6:]
 if got.endswith(b'\x1b[201~'): got = got[:-6]
 assert got.replace(b'\r\n', b'\n').replace(b'\r', b'\n') == want, 'payload differs'
@@ -65,8 +67,15 @@ if [[ -n ${ITERM_SESSION_ID:-} && -z ${TMUX:-} ]]; then
   sleep 3
   compare "$D/r.bin"
   [[ $("$S/iterm.sh" info "$P") == selfcheck\|* ]] || { echo "FAIL tag" >&2; exit 1; }
-  if "$S/send.sh" "$lead" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted non-worker" >&2; exit 1; fi
-  if "$S/iterm.sh" close "$lead" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  # The lead-rejection checks need a lead that is not itself a cowork pane: a cowork-spawned
+  # lead (selfcheck run from a worker window) is a real worker, and sending would type the
+  # payload into that live agent and close would kill the lead window.
+  if [[ -n $("$S/iterm.sh" info "$lead" | cut -d'|' -f1) ]]; then
+    echo "note: lead is itself a cowork pane; skipping lead-rejection checks" >&2
+  else
+    if "$S/send.sh" "$lead" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted non-worker" >&2; exit 1; fi
+    if "$S/iterm.sh" close "$lead" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  fi
   "$S/capture.sh" "$P" 5 >/dev/null
   "$S/iterm.sh" close "$P" >/dev/null; P=
   echo "iterm2 ok"
@@ -82,7 +91,9 @@ if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Apple_Terminal ]]; then
   compare "$D/r.bin"
   "$S/capture.sh" "$P" 5 >/dev/null
   tty=$(ps -o tty= -p $$ | tr -d ' ')
-  if [[ $tty != '??' ]] && "$S/terminal.sh" close "$tty" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  # Same as the iTerm lead check: a cowork-spawned Terminal lead is a worker itself, so the
+  # close-rejection check doesn't apply (a successful close would kill the lead).
+  if [[ -n $tty && $tty != '??' && ! -f "$tags/$tty" ]] && "$S/terminal.sh" close "$tty" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
   "$S/terminal.sh" close "$P" >/dev/null; P=
   echo "terminal ok"
 fi
@@ -108,8 +119,14 @@ if got.endswith(b'\x1b[201~'): got = got[:-6]
 norm = lambda b: b.replace(b'\r\n', b'\n').replace(b'\r', b'\n').rstrip(b'\n')
 assert norm(got) == norm(want), 'payload differs'
 PY
-  if "$S/send.sh" "$ORCA_TERMINAL_HANDLE" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted non-worker" >&2; exit 1; fi
-  if "$S/orca.sh" close "$ORCA_TERMINAL_HANDLE" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  # Same as the iTerm lead check: a cowork-spawned Orca lead has its own .worker record, so the
+  # lead-rejection checks don't apply (sending would type the payload into that live agent).
+  if [[ -f "${TMPDIR:-/tmp}/cowork/$ORCA_TERMINAL_HANDLE.worker" ]]; then
+    echo "note: lead is itself a cowork pane; skipping lead-rejection checks" >&2
+  else
+    if "$S/send.sh" "$ORCA_TERMINAL_HANDLE" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted non-worker" >&2; exit 1; fi
+    if "$S/orca.sh" close "$ORCA_TERMINAL_HANDLE" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  fi
   "$S/capture.sh" "$P" 5 >/dev/null
   "$S/orca.sh" close "$P" >/dev/null; P=
   echo "orca ok"

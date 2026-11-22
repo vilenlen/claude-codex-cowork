@@ -46,9 +46,12 @@ on run argv
 							return tag & "|" & job
 						else if act is "send" then
 							-- Bracketed paste keeps multiline text and shell metacharacters as one input message.
+							-- The Enter goes out a full second later: a young worker TUI drains queued stdin in one
+							-- batch and takes a CR glued to the paste as a composer newline (nothing submitted),
+							-- while Enter on an already-submitted empty composer is ignored.
 							tell s
 								write text (esc & "[200~" & body & esc & "[201~") newline no
-								delay 0.3
+								delay 1
 								write text (character id 13) newline no
 							end tell
 							return "sent_to=" & sid
