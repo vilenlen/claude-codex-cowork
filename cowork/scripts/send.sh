@@ -23,7 +23,7 @@ if [[ $pane =~ ^term_[-0-9A-Fa-f]+$ ]]; then
   [[ -f ${TMPDIR:-/tmp}/cowork/$pane.worker ]] || { echo "target is not a cowork pane" >&2; exit 2; }
   IFS='|' read -r worker job < <("$(dirname "$0")/orca.sh" info "$pane") || { echo "Orca terminal not found" >&2; exit 1; }
   [[ $worker == claude || $worker == codex ]] || { echo "target is not a cowork pane" >&2; exit 2; }
-  [[ $job == codex || $job == claude ]] || { echo "worker not running in this pane yet or exited (agent=${job:-none})" >&2; exit 1; }
+  [[ $job == codex || $job == claude || $job == claude-glink ]] || { echo "worker not running in this pane yet or exited (agent=${job:-none})" >&2; exit 1; }
   mark
   "$(dirname "$0")/orca.sh" send "$pane" "$prompt"
   exit 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Print the last N lines of a Codex pane (tmux %N or iTerm2 session UUID), including scrollback.
+# Print the last N lines of a worker pane (tmux %N, Orca term_<uuid>, iTerm2 session UUID or Terminal.app tty id).
 # Usage: capture.sh <pane-id> [lines=80]
 set -euo pipefail
 [[ $# -ge 1 ]] || { echo "usage: $0 <pane-id> [lines]" >&2; exit 2; }

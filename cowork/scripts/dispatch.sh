@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start an interactive worker split/window (auto-detected: tmux, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
+# Start an interactive worker split/window (auto-detected: tmux, else Orca, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
 # Usage: dispatch.sh <task-name> <project-dir> [-m <model>] [--effort <low|medium|high|xhigh>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]
 set -euo pipefail
 [[ $# -ge 2 ]] || { echo "usage: $0 <task-name> <project-dir> [-m <model>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]" >&2; exit 2; }
@@ -83,7 +83,7 @@ if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Apple_Terminal ]]; then
   printf 'pane=%s\n%s\n' "$pane" "$hint"
   exit 0
 fi
-command -v tmux >/dev/null || { echo "requires tmux, iTerm2 or Terminal.app" >&2; exit 1; }
+command -v tmux >/dev/null || { echo "requires tmux, iTerm2, Terminal.app or an Orca terminal handle" >&2; exit 1; }
 if [[ -n ${TMUX:-} ]]; then
   lead=${TMUX_PANE:?}
   win=$(tmux display -p -t "$lead" '#{window_id}')

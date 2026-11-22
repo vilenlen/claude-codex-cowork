@@ -13,7 +13,9 @@ expect_dispatch_error --unknown
 python3 -I "$S/test_workers.py"
 
 D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
-trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || "$S/terminal.sh" close "$P" >/dev/null 2>&1 || "$S/orca.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
+# Route the close to the pane's own backend: iterm.sh speaks AppleScript and would launch
+# iTerm2 itself just to fail on a non-iTerm pane id.
+trap 'if [[ -n $P ]]; then case $P in term_[-0-9A-Fa-f]*) "$S/orca.sh" close "$P" >/dev/null 2>&1 ;; ttys[0-9]*) "$S/terminal.sh" close "$P" >/dev/null 2>&1 ;; *) "$S/iterm.sh" close "$P" >/dev/null 2>&1 ;; esac; fi; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
 python3 -I - "$D/p.txt" <<'PY'
 import sys
 open(sys.argv[1], 'w', encoding='utf-8').write(''.join('行%05d "q" `bt` $(x) \\n | & ;\n' % i for i in range(2000)))
