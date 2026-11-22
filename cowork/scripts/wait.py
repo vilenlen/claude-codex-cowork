@@ -101,7 +101,7 @@ def main():
     if worker == "claude":
         rollout = os.path.join(launch, "events.jsonl")
     seen = set(open(seen_file).read().split()) if os.path.exists(seen_file) else set()
-    t0, size, tick, quiet_since = time.time(), -1, 0, time.time()
+    t0, size, tick, quiet_since, misses = time.time(), -1, 0, time.time(), 0
 
     def done(status, msg=""):
         with open(last, "w") as f:
@@ -128,11 +128,16 @@ def main():
         elif time.time() - quiet_since > STALL:
             # Log silent: either a long command (screen shows "Working (") or a prompt Codex does not log.
             screen = run(os.path.join(HERE, "capture.sh"), pane, "25")
-            if worker == "claude" or "Working (" not in screen:
+            # Claude logs nothing during a long tool call; its spinner line shows elapsed "(… · ↓".
+            busy = "Working (" in screen or (worker == "claude" and re.search(r"\(\d+[hms][^)]*· ↓", screen))
+            if not busy:
                 done("stalled", screen + "\n")
             quiet_since = time.time()
-        if tick % 3 == 0 and not pane_tty(pane):
-            done("exited")
+        # One failed lookup can be an osascript hiccup; require three in a row.
+        if tick % 3 == 0:
+            misses = 0 if pane_tty(pane) else misses + 1
+            if misses >= 3:
+                done("exited")
         tick += 1
         time.sleep(POLL)
     done("timeout")
