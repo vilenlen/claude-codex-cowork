@@ -1,0 +1,30 @@
+cowork/scripts/send.sh
+  s_c6cb5ced41e50a::t_a0123e11792709 51-54,57
+cowork/scripts/selfcheck.sh
+  s_c6cb5ced41e50a::t_24408d65de9f17 122-129
+  s_c6cb5ced41e50a::t_2fd62d7884d312 70-78
+  s_c6cb5ced41e50a::t_a70c9527ceff21 94-96
+  s_c6cb5ced41e50a::t_f754266741a20c 27-29
+cowork/scripts/iterm.sh
+  s_c6cb5ced41e50a::t_87afa561e23c58 49-51,54
+cowork/scripts/terminal.sh
+  s_c6cb5ced41e50a::t_5795c43e57718c 118-123,125-126
+cowork/scripts/orca.sh
+  s_c6cb5ced41e50a::t_4e520bb7647c2c 72-76,78-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4b011c3df03391a7f762db78413205564e7df4ec",
+  "prompts": {},
+  "sessions": {
+    "s_c6cb5ced41e50a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19a061dc-4d48-4dcf-94f4-e1e2bac0f788",
+        "model": "codefuse-glm-1m/glink/GLM-5.3:glink_domestic"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
