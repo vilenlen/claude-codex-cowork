@@ -1,0 +1,19 @@
+cowork/scripts/wait.py
+  s_b436d024381cc2::t_b4d3a62968a705 104,131-133,136-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fe7ceb97d1ad9861a73b0d6e61ec4f4733f797f1",
+  "prompts": {},
+  "sessions": {
+    "s_b436d024381cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8c0cfa3-b234-459c-8eed-40eafe606579",
+        "model": "codefuse-glm-1m/glink/GLM-5.3:glink_domestic"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
