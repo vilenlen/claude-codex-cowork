@@ -1,0 +1,19 @@
+cowork/scripts/wait.py
+  s_f758eee1d9b1c0::t_0d9ac9916f7457 104,131-133,136-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "598c3a5c93194b1d0de0f40a014800a4f22d1b4e",
+  "prompts": {},
+  "sessions": {
+    "s_f758eee1d9b1c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9fa38110-d3dd-4f4f-9a74-4086f7451e7a",
+        "model": "group/opus"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
