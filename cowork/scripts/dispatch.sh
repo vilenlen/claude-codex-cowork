@@ -62,6 +62,13 @@ record() {
 printf -v shcmd 'exec zsh %q %s' "$here/worker-start.zsh" "$cmd"
 hint='Check this pane with scripts/capture.sh <pane>, then use scripts/send.sh <pane> <prompt-file>.'
 
+if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Orca && -n ${ORCA_TERMINAL_HANDLE:-} ]]; then
+  printf -v line 'cd %q && %s' "$dir" "$shcmd"
+  pane=$("$(dirname "$0")/orca.sh" split "$ORCA_TERMINAL_HANDLE" "$name" "$line")
+  record
+  printf 'pane=%s\n%s\n' "$pane" "$hint"
+  exit 0
+fi
 if [[ -z ${TMUX:-} && -n ${ITERM_SESSION_ID:-} ]]; then
   printf -v line 'cd %q && %s' "$dir" "$shcmd"
   pane=$("$(dirname "$0")/iterm.sh" split "${ITERM_SESSION_ID#*:}" "$name" "$line")

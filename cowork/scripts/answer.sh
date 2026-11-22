@@ -14,6 +14,12 @@ if [[ $pane =~ ^%[0-9]+$ ]]; then
   [[ -n $(tmux show-option -p -v -t "$pane" @cowork 2>/dev/null) ]] || { echo "target is not a cowork pane" >&2; exit 2; }
   key() { tmux send-keys -t "$pane" "$1"; }
   note() { printf %s "$1" | tmux load-buffer -b "cw-note-$$" -; tmux paste-buffer -r -p -d -b "cw-note-$$" -t "$pane"; }
+elif [[ $pane =~ ^term_[-0-9A-Fa-f]+$ ]]; then
+  # Orca: without --enter bytes reach the PTY verbatim, so arrow/tab/enter go through as raw escapes.
+  [[ $("$here/orca.sh" info "$pane") == ?*\|codex ]] || { echo "target is not a running cowork pane" >&2; exit 2; }
+  tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
+  key() { case $1 in Down) printf '\033[B' ;; Tab) printf '\t' ;; Enter) printf '\r' ;; esac > "$tmp"; "$here/orca.sh" keys "$pane" "$tmp" >/dev/null; }
+  note() { printf '\033[200~%s\033[201~' "$1" > "$tmp"; "$here/orca.sh" keys "$pane" "$tmp" >/dev/null; }
 elif [[ $pane =~ ^ttys[0-9]+$ ]]; then
   # Terminal.app always appends an Enter to what it types, so each question goes out as one write: keys, note, then that Enter.
   [[ $("$here/terminal.sh" info "$pane") == ?*\|codex ]] || { echo "target is not a running cowork pane" >&2; exit 2; }

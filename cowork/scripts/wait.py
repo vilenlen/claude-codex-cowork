@@ -24,6 +24,8 @@ def run(*cmd):
 def pane_tty(pane):
     if re.fullmatch(r"%\d+", pane):
         return run("tmux", "display", "-p", "-t", pane, "#{pane_tty}") if pane in run("tmux", "list-panes", "-a", "-F", "#{pane_id}").split() else ""
+    if re.fullmatch(r"term_[-0-9A-Fa-f]+", pane):
+        return run(os.path.join(HERE, "orca.sh"), "tty", pane)
     if re.fullmatch(r"ttys\d+", pane):
         return run(os.path.join(HERE, "terminal.sh"), "tty", pane)
     return run(os.path.join(HERE, "iterm.sh"), "tty", pane)

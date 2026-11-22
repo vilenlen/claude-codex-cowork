@@ -13,7 +13,7 @@ expect_dispatch_error --unknown
 python3 -I "$S/test_workers.py"
 
 D=$(mktemp -d); P=; ts="cw-selfcheck-$$"
-trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || "$S/terminal.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
+trap '[[ -z $P ]] || "$S/iterm.sh" close "$P" >/dev/null 2>&1 || "$S/terminal.sh" close "$P" >/dev/null 2>&1 || "$S/orca.sh" close "$P" >/dev/null 2>&1 || true; tmux kill-session -t "$ts" 2>/dev/null || true; rm -rf "$D"' EXIT
 python3 -I - "$D/p.txt" <<'PY'
 import sys
 open(sys.argv[1], 'w', encoding='utf-8').write(''.join('行%05d "q" `bt` $(x) \\n | & ;\n' % i for i in range(2000)))
@@ -83,6 +83,34 @@ if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Apple_Terminal ]]; then
   if [[ $tty != '??' ]] && "$S/terminal.sh" close "$tty" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
   "$S/terminal.sh" close "$P" >/dev/null; P=
   echo "terminal ok"
+fi
+
+if [[ -z ${TMUX:-} && ${TERM_PROGRAM:-} == Orca && -n ${ORCA_TERMINAL_HANDLE:-} ]]; then
+  P=$("$S/orca.sh" split "$ORCA_TERMINAL_HANDLE" selfcheck "stty raw -echo; cat > $D/r.bin")
+  mkdir -p "${TMPDIR:-/tmp}/cowork"
+  printf 'codex\n\n' > "${TMPDIR:-/tmp}/cowork/$P.worker"
+  # The pane's shell finishes loading lazily, so the startup command can land seconds late.
+  for _ in $(seq 40); do if [[ -e $D/r.bin ]]; then break; fi; sleep 0.5; done
+  [[ -e $D/r.bin ]] || { echo "FAIL: worker command never started" >&2; exit 1; }
+  [[ $("$S/orca.sh" info "$P") == codex\|* ]] || { echo "FAIL tag" >&2; exit 1; }
+  "$S/orca.sh" send "$P" "$D/p.txt" >/dev/null
+  sleep 3
+  # An argv-payload backend drops the file's trailing newlines; Enter arrives as CR.
+  python3 -I - "$D/p.txt" "$D/r.bin" <<'PY'
+import sys
+want, got = (open(f, 'rb').read() for f in sys.argv[1:3])
+assert got.endswith(b'\r'), 'Enter missing'
+got = got[:-1]
+if got.startswith(b'\x1b[200~'): got = got[6:]
+if got.endswith(b'\x1b[201~'): got = got[:-6]
+norm = lambda b: b.replace(b'\r\n', b'\n').replace(b'\r', b'\n').rstrip(b'\n')
+assert norm(got) == norm(want), 'payload differs'
+PY
+  if "$S/send.sh" "$ORCA_TERMINAL_HANDLE" "$D/p.txt" >/dev/null 2>&1; then echo "FAIL: send accepted non-worker" >&2; exit 1; fi
+  if "$S/orca.sh" close "$ORCA_TERMINAL_HANDLE" >/dev/null 2>&1; then echo "FAIL: close accepted non-worker" >&2; exit 1; fi
+  "$S/capture.sh" "$P" 5 >/dev/null
+  "$S/orca.sh" close "$P" >/dev/null; P=
+  echo "orca ok"
 fi
 
 if command -v tmux >/dev/null; then
