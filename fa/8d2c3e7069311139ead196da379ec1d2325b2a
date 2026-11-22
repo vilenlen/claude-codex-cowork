@@ -1,0 +1,31 @@
+cowork/SKILL.md
+  s_b436d024381cc2::t_f0e31f72aecd94 37
+cowork/scripts/send.sh
+  s_b436d024381cc2::t_7936dc9c4ec1af 26
+cowork/scripts/wait.py
+  s_b436d024381cc2::t_56cd131830caaa 131,134-136,138-142
+cowork/scripts/session-start.sh
+  s_b436d024381cc2::t_83dbc64e2087e8 2-3,5
+cowork/scripts/selfcheck.sh
+  s_b436d024381cc2::t_729945cdb982bc 16-18
+cowork/scripts/capture.sh
+  s_b436d024381cc2::t_8735abb8946ab2 2
+cowork/scripts/dispatch.sh
+  s_b436d024381cc2::t_bc1fed3b69d56d 2,86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fa8d2c3e7069311139ead196da379ec1d2325b2a",
+  "prompts": {},
+  "sessions": {
+    "s_b436d024381cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8c0cfa3-b234-459c-8eed-40eafe606579",
+        "model": "codefuse-glm-1m/glink/GLM-5.3:glink_domestic"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
