@@ -130,16 +130,14 @@ def main():
         elif time.time() - quiet_since > STALL:
             # Log silent: either a long command (Codex draws "Working (") or a prompt it does not log.
             screen = run(os.path.join(HERE, "capture.sh"), pane, "25")
-            # Claude logs nothing during a long tool call; its spinner line shows elapsed "(… · ↓".
+            # Claude logs nothing during a long tool call; its spinner line shows elapsed "(… · ↓" (↑ while uploading).
             # "Working (" is Codex-only: a Claude worker that literally reads that string (reviewing this
             # file, for instance) would otherwise look busy until the timeout.
-            busy = (worker == "codex" and "Working (" in screen) or (worker == "claude" and re.search(r"\(\d+[hms][^)]*· ↓", screen))
-            if not busy:
-                # An empty capture usually means the pane is gone (every backend fails closed there);
-                # cross-check liveness once so a capture hiccup still reports stalled, not exited.
-                if screen.strip() or pane_tty(pane):
-                    done("stalled", screen + "\n")
-                done("exited")
+            busy = (worker == "codex" and "Working (" in screen) or (worker == "claude" and re.search(r"\(\d+[hms][^)]*· [↑↓]", screen))
+            # An empty capture usually means the pane is gone (every backend fails closed there); then leave
+            # the verdict to the three-miss liveness check below instead of reporting an empty stall.
+            if not busy and (screen.strip() or pane_tty(pane)):
+                done("stalled", screen + "\n")
             quiet_since = time.time()
         # One failed lookup can be an osascript hiccup; require three in a row.
         if tick % 3 == 0:
