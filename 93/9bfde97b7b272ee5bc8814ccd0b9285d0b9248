@@ -1,0 +1,19 @@
+cowork/scripts/wait.py
+  s_684ba6888da09f::t_cd8f19d7392691 133,136-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "939bfde97b7b272ee5bc8814ccd0b9285d0b9248",
+  "prompts": {},
+  "sessions": {
+    "s_684ba6888da09f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b13cb439-a7ff-4ed4-acdf-af17799ac94a",
+        "model": "glink/claude-opus-5-5"
+      },
+      "human_author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
