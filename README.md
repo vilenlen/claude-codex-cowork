@@ -56,7 +56,7 @@ bash ~/.claude/skills/cowork/scripts/selfcheck.sh
 /cowork 让 Claude 实现这项修改，用 sonnet，你负责验收。
 ```
 
-脚本接口保持默认 Codex，支持 `--worker claude` 和显式入口 `--worker claude-glink`；例如：
+脚本接口保持默认 Codex，支持 `--worker claude`、显式入口 `--worker claude-glink` 和 Antigravity CLI `--worker agy`（始终带 `--dangerously-skip-permissions`）；例如：
 
 ```bash
 bash cowork/scripts/dispatch.sh fix-login "$PWD" -m sonnet --worker claude

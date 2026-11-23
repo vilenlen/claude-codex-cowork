@@ -147,6 +147,66 @@ if sys.argv[1] == 'new-session':
                         self.assertFalse((root / 'SHOULD_NOT_EXIST').exists())
 
 
+    def test_agy(self):
+        with tempfile.TemporaryDirectory(prefix='cowork agy ') as temp:
+            root = Path(temp)
+            env = dict(os.environ, PATH=temp + ':' + os.environ['PATH'], TMPDIR=temp,
+                       TMUX='', ITERM_SESSION_ID='', TERM_PROGRAM='', TEST_ROOT=temp, ZDOTDIR=temp)
+            (root / 'agy').write_text('#!/usr/bin/env python3\nimport json, os, pathlib, sys\n'
+                                      "pathlib.Path(os.environ['TEST_ROOT'], 'args.json').write_text(json.dumps(sys.argv[1:]))\n")
+            (root / 'tmux').write_text("#!/usr/bin/env python3\nimport subprocess, sys\nif sys.argv[1] == 'new-session':\n subprocess.run(['bash', '-c', sys.argv[-1]], check=True)\n print('%42')\n")
+            for name in ('agy', 'tmux'):
+                (root / name).chmod(0o755)
+            uuid = '12345678-1234-1234-1234-123456789abc'
+            def dispatch(*args):
+                return subprocess.run(['bash', str(HERE / 'dispatch.sh'), 'test', temp, '--worker', 'agy', *args], cwd=temp, env=env, capture_output=True, text=True)
+            for args in [('--search',), ('--effort', 'minimal')]:
+                self.assertEqual(dispatch(*args).returncode, 2)
+            skip = '--dangerously-skip-permissions'
+            # The flag is always present exactly once: added without a wrapper, kept (not duplicated) with one.
+            for rc in ('', f"alias agy='\"$TEST_ROOT/agy\" {skip}'\n", f'agy () {{ "$TEST_ROOT/agy" {skip} "$@"; }}\n'):
+                with self.subTest(rc=rc):
+                    (root / '.zshrc').write_text(rc)
+                    result = dispatch('-m', 'model x', '--effort', 'high', '--resume', uuid)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    args = json.loads((root / 'args.json').read_text())
+                    self.assertEqual(args.count(skip), 1, args)
+                    self.assertEqual(args[0], skip)
+                    self.assertEqual(args[1], '--add-dir')
+                    self.assertEqual(args[3:], ['--model', 'model x', '--effort', 'high', '--conversation', uuid])
+            result = dispatch()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = json.loads((root / 'args.json').read_text())
+            self.assertEqual(args[3:], [], 'agy without -m keeps its saved model')
+            base = root / 'cowork'
+            self.assertEqual((base / '%42.worker').read_text().splitlines()[0], 'agy')
+            hooks = json.loads((Path(args[2]) / '.agents' / 'hooks.json').read_text())['cowork']
+            command = hooks['Stop'][0]['command']
+            self.assertEqual(hooks['PostToolUse'][0]['hooks'][0]['command'], command)
+            transcript = root / 'transcript.jsonl'
+            transcript.write_text(''.join(json.dumps(s) + '\n' for s in [
+                {'type': 'USER_INPUT', 'content': 'task'},
+                {'type': 'PLANNER_RESPONSE', 'content': 'old'},
+                {'type': 'PLANNER_RESPONSE', 'content': '完成\n`literal` $(text)'}]))
+            def hook(**payload):
+                result = subprocess.run(['bash', '-c', command], input=json.dumps(dict(conversationId=uuid, transcriptPath=str(transcript), **payload)), text=True, capture_output=True, check=True)
+                self.assertEqual(json.loads(result.stdout), {})
+            def wait():
+                result = subprocess.run(['python3', '-I', str(HERE / 'wait.py'), '%42', '2'], env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return result.stdout
+            (base / '%42.sent').write_text('2000-01-01T00:00:00.000Z\n【CC指派】test\n')
+            hook(hookEventName='SessionStart')
+            hook(hookEventName='PreInvocation', invocationNum=0)
+            hook(hookEventName='PostToolUse', toolCall={'name': 'run_command'})
+            hook(hookEventName='Stop', terminationReason='NO_TOOL_CALL', error='')
+            self.assertIn('status=completed', wait())
+            self.assertEqual((base / '%42.last.md').read_text(), '完成\n`literal` $(text)')
+            hook(hookEventName='PreInvocation', invocationNum=0)
+            hook(hookEventName='Stop', terminationReason='USER_CANCELED', error='')
+            self.assertIn('status=aborted', wait())
+            self.assertEqual((base / '%42.last.md').read_text(), 'USER_CANCELED')
+
     def test_worker_does_not_become_lead(self):
         result = subprocess.run(['bash', str(HERE / 'session-start.sh')], env=dict(os.environ, COWORK_WORKER='1', TMUX='yes'), capture_output=True)
         self.assertEqual(result.stdout, b'')

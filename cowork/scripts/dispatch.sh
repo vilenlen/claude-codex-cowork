@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Start an interactive worker split/window (auto-detected: tmux, else Orca, else iTerm2, else Terminal.app, else a detached tmux session); send the task separately after checking readiness.
-# Usage: dispatch.sh <task-name> <project-dir> [-m <model>] [--effort <low|medium|high|xhigh>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]
+# Usage: dispatch.sh <task-name> <project-dir> [-m <model>] [--effort <low|medium|high|xhigh>] [--worker cla|codex|claude|claude-glink|agy] [--search] [--resume <session-UUID>]
 set -euo pipefail
-[[ $# -ge 2 ]] || { echo "usage: $0 <task-name> <project-dir> [-m <model>] [--worker cla|codex|claude|claude-glink] [--search] [--resume <session-UUID>]" >&2; exit 2; }
+[[ $# -ge 2 ]] || { echo "usage: $0 <task-name> <project-dir> [-m <model>] [--worker cla|codex|claude|claude-glink|agy] [--search] [--resume <session-UUID>]" >&2; exit 2; }
 name=$1 dir=$2; shift 2
 [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad task name: $name" >&2; exit 2; }
 [[ -d $dir ]] || { echo "missing project dir" >&2; exit 2; }
@@ -14,7 +14,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 && -n $2 && $2 != -* ]] || { echo "-m requires a model" >&2; exit 2; }
       model=$2; shift 2 ;;
     --worker)
-      [[ $# -ge 2 && $2 =~ ^(cla|codex|claude|claude-glink)$ ]] || { echo "--worker requires cla|codex|claude|claude-glink" >&2; exit 2; }
+      [[ $# -ge 2 && $2 =~ ^(cla|codex|claude|claude-glink|agy)$ ]] || { echo "--worker requires cla|codex|claude|claude-glink|agy" >&2; exit 2; }
       worker=$2; shift 2 ;;
     --search) search=1; shift ;;
     --effort)
@@ -28,13 +28,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 entry=$worker
-[[ $worker == codex ]] || worker=claude
+[[ $worker == codex || $worker == agy ]] || worker=claude
 if [[ $worker == codex ]]; then
   [[ -n $model ]] || { echo "explicit -m <model> is required for codex" >&2; exit 2; }
 else
-  model=${model:-opus}
-  [[ -z $search ]] || { echo "--search is Codex-only; Claude uses its configured web tools" >&2; exit 2; }
-  [[ $effort != minimal ]] || { echo "Claude does not support minimal effort" >&2; exit 2; }
+  # agy without -m keeps the model saved by its /model.
+  [[ $worker == agy ]] || model=${model:-opus}
+  [[ -z $search ]] || { echo "--search is Codex-only; Claude and agy use their configured web tools" >&2; exit 2; }
+  [[ $effort != minimal ]] || { echo "$worker does not support minimal effort" >&2; exit 2; }
 fi
 command -v zsh >/dev/null || { echo "zsh not found" >&2; exit 1; }
 # A fresh launch record avoids stale results when a terminal reuses a pane/tty ID.
@@ -48,6 +49,14 @@ if [[ $worker == codex ]]; then
   [[ -z $search ]] || cmd+=' --search'
   [[ -z $effort ]] || cmd+=" -c model_reasoning_effort=$effort"
   [[ -z $resume ]] || cmd+=" $resume"
+elif [[ $worker == agy ]]; then
+  # agy loads .agents/hooks.json from every workspace dir, so --add-dir wires the turn events without touching user config.
+  mkdir "$launch/.agents"
+  python3 -I "$here/claude-events.py" agy-hooks "$launch" > "$launch/.agents/hooks.json"
+  printf -v cmd 'agy --add-dir %q' "$launch"
+  [[ -z $model ]] || printf -v cmd '%s --model %q' "$cmd" "$model"
+  [[ -z $effort ]] || cmd+=" --effort $effort"
+  [[ -z $resume ]] || cmd+=" --conversation $resume"
 else
   python3 -I "$here/claude-events.py" settings "$launch" > "$launch/settings.json"
   printf -v cmd '%s --model %q --settings %q' "$entry" "$model" "$launch/settings.json"

@@ -4,7 +4,7 @@
 Usage: wait.py <pane-id> [timeout-seconds=3600]
 Status: completed | aborted | needs_input | stalled | exited | timeout.
 Details go to the file named by last=, never stdout: the final answer, the pending question (JSON) or the screen tail.
-Signal: Codex rollout logs or Claude hook events; the pane is only peeked at (by this script, not the caller) once the log goes quiet.
+Signal: Codex rollout logs or Claude/agy hook events; the pane is only peeked at (by this script, not the caller) once the log goes quiet.
 """
 import json, os, re, subprocess, sys, tempfile, time
 import importlib.util
@@ -100,7 +100,7 @@ def main():
     claude = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(claude)
     rollout = open(cache).read().strip() if os.path.exists(cache) else None
-    if worker == "claude":
+    if worker in ("claude", "agy"):
         rollout = os.path.join(launch, "events.jsonl")
     seen = set(open(seen_file).read().split()) if os.path.exists(seen_file) else set()
     t0, size, tick, quiet_since, misses = time.time(), -1, 0, time.time(), 0
@@ -121,7 +121,7 @@ def main():
         if rollout and os.path.exists(rollout) and os.path.getsize(rollout) != size:
             size, quiet_since = os.path.getsize(rollout), time.time()
             with open(rollout) as f:
-                state = (claude.scan_events if worker == "claude" else scan)(f, sent, seen)
+                state = (claude.scan_events if worker in ("claude", "agy") else scan)(f, sent, seen)
             if state and state[0] == "needs_input":
                 with open(seen_file, "a") as f:
                     f.write(json.loads(state[1])["call_id"] + "\n")
@@ -133,7 +133,9 @@ def main():
             # Claude logs nothing during a long tool call; its spinner line shows elapsed "(… · ↓" (↑ while uploading).
             # "Working (" is Codex-only: a Claude worker that literally reads that string (reviewing this
             # file, for instance) would otherwise look busy until the timeout.
-            busy = (worker == "codex" and "Working (" in screen) or (worker == "claude" and re.search(r"\(\d+[hms][^)]*· [↑↓]", screen))
+            # agy's footer reads "esc to cancel" while a turn runs and "? for shortcuts" when idle.
+            busy = (worker == "codex" and "Working (" in screen) or (worker == "claude" and re.search(r"\(\d+[hms][^)]*· [↑↓]", screen)) \
+                or (worker == "agy" and "esc to cancel" in screen)
             # An empty capture usually means the pane is gone (every backend fails closed there); then leave
             # the verdict to the three-miss liveness check below instead of reporting an empty stall.
             if not busy and (screen.strip() or pane_tty(pane)):

@@ -7,8 +7,8 @@ fi
 export COWORK_WORKER=1
 case $1 in
   cla|claude|claude-glink) unset CLAUDECODE ;;
-  codex) ;;
-  *) print -u2 'expected cla, codex, claude or claude-glink'; exit 2 ;;
+  codex|agy) ;;
+  *) print -u2 'expected cla, codex, claude, claude-glink or agy'; exit 2 ;;
 esac
 cowork_worker=$1
 shift
@@ -23,6 +23,10 @@ if [[ $cowork_worker == codex && ${aliases[codex]:-${functions[codex]}} == *(--y
     esac
   done
   set -- "${cowork_args[@]}"
+fi
+# agy always runs with --dangerously-skip-permissions: add it unless the user's wrapper already passes it.
+if [[ $cowork_worker == agy && ${aliases[agy]:-${functions[agy]}} != *--dangerously-skip-permissions* ]]; then
+  set -- --dangerously-skip-permissions "$@"
 fi
 # Resolve the trusted user alias explicitly: zsh suppresses alias expansion after exec.
 # Arguments remain positional parameters, never shell source (even quotes or $()).

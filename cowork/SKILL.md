@@ -14,8 +14,8 @@ description: Team Lead 模式：当前助手作为 Lead 拆解任务、做关键
 - 结果不符时向原 worker 窗口发送反馈继续处理，不自己默默重写。
 
 ## Worker 选择
-默认 `--worker cla`，先 source 用户 zsh 配置，再解析 `aliases[cla]`，完整保留 alias 参数，不硬编码展开结果。可显式选择 `--worker claude`、`--worker claude-glink` 或 `--worker codex`；worker 可混用，Lead 不限于 Claude。
-`cla`、`claude`、`claude-glink` 共用 Claude 事件协议和就绪判断；启动、事件和提问处理见 [references/claude.md](references/claude.md)，选择 Claude 时先读。下文涉及 Codex 模型、rollout、问题菜单和权限参数的内容仅适用于 Codex。
+默认 `--worker cla`，先 source 用户 zsh 配置，再解析 `aliases[cla]`，完整保留 alias 参数，不硬编码展开结果。可显式选择 `--worker claude`、`--worker claude-glink`、`--worker codex` 或 `--worker agy`（Antigravity CLI）；worker 可混用，Lead 不限于 Claude。
+`cla`、`claude`、`claude-glink` 共用 Claude 事件协议和就绪判断；启动、事件和提问处理见 [references/claude.md](references/claude.md)，选择 Claude 时先读。`agy` 的启动、事件和恢复见 [references/agy.md](references/agy.md)，选择 agy 时先读；agy 始终带 `--dangerously-skip-permissions`。下文涉及 Codex 模型、rollout、问题菜单和权限参数的内容仅适用于 Codex。
 
 ## Claude 默认模型
 - 常规任务默认 `opus`；快速任务（简单修改、冒烟、结果核对）默认选择 `sonnet`，启动时传 `-m sonnet`。
@@ -30,11 +30,11 @@ description: Team Lead 模式：当前助手作为 Lead 拆解任务、做关键
 | 复杂分析、架构、根因、跨模块实现 | `gpt-6-astra` |
 | 简单任务、发布、冒烟、回放验收、结果核对 | `gpt-6.1-sol` |
 
-每个 Lead 会话首次使用 Codex 前检查 `codex login status`。模型是否可用以交互窗口实际结果为准；不可用时停下问用户，不自行替换。worker 由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后启动，遵循用户配置的 `cla` / `codex` / `claude` / `claude-glink` 别名和环境变量；检查登录状态时也使用同一入口。
+每个 Lead 会话首次使用 Codex 前检查 `codex login status`。模型是否可用以交互窗口实际结果为准；不可用时停下问用户，不自行替换。worker 由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后启动，遵循用户配置的 `cla` / `codex` / `claude` / `claude-glink` / `agy` 别名和环境变量；检查登录状态时也使用同一入口。
 
 ## 启动后再发任务（固定顺序）
 1. 将任务正文写入本地 UTF-8 文件，保留换行，不拼入 shell 命令。**第一行必须是任务标题，且以 `【CC指派】` 开头**（如 `【CC指派】修复登录超时`）；后续补充、验收反馈、新任务同样适用。`send.sh`/`wait.py` 靠首行定位会话日志，所以标题要放在首行且不要留空行在前。
-2. 执行 `scripts/dispatch.sh <name> <dir> [-m <模型>] [--worker cla|codex|claude|claude-glink] [--effort <级别>] [--search]`。脚本启动所选交互式 worker（默认通过 `cla` alias 启动并传 `--model opus`；快速任务加 `-m sonnet`；Codex 必须指定 `--worker codex -m <模型>`，默认使用 `-a never -s danger-full-access`，入口自带 bypass 旗标时省略这两个默认参数），此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID，Terminal.app 为 `ttysNNN`，Orca 为 `term_<UUID>` 终端句柄）。自动识别当前终端：在 tmux 内用 tmux 分屏；Orca 内（`TERM_PROGRAM=Orca` 且 `ORCA_TERMINAL_HANDLE` 非空）经 `orca terminal split` 在当前标签页分屏，worker 标记为 `${TMPDIR}/cowork/<句柄>.worker`，句柄为 UUID 不会复用；否则 iTerm2 内用 iTerm2 分屏；否则 Terminal.app 内为每个 worker 开并排窗口（Terminal 无分屏，需在「系统设置 → 隐私与安全性 → 自动化」允许控制「终端」）；都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Lead 右侧，之后的叠在上一个 worker 下方。启动前后按「闲置窗口回收」检查数量。
+2. 执行 `scripts/dispatch.sh <name> <dir> [-m <模型>] [--worker cla|codex|claude|claude-glink|agy] [--effort <级别>] [--search]`。脚本启动所选交互式 worker（默认通过 `cla` alias 启动并传 `--model opus`；快速任务加 `-m sonnet`；Codex 必须指定 `--worker codex -m <模型>`，默认使用 `-a never -s danger-full-access`，入口自带 bypass 旗标时省略这两个默认参数），此时不发送任务；记录返回的 `pane=<窗口ID>`（tmux 为 `%N`，iTerm2 为 UUID，Terminal.app 为 `ttysNNN`，Orca 为 `term_<UUID>` 终端句柄）。自动识别当前终端：在 tmux 内用 tmux 分屏；Orca 内（`TERM_PROGRAM=Orca` 且 `ORCA_TERMINAL_HANDLE` 非空）经 `orca terminal split` 在当前标签页分屏，worker 标记为 `${TMPDIR}/cowork/<句柄>.worker`，句柄为 UUID 不会复用；否则 iTerm2 内用 iTerm2 分屏；否则 Terminal.app 内为每个 worker 开并排窗口（Terminal 无分屏，需在「系统设置 → 隐私与安全性 → 自动化」允许控制「终端」）；都不是时创建独立 tmux 会话并输出 attach 命令。第一个 worker 在 Lead 右侧，之后的叠在上一个 worker 下方。启动前后按「闲置窗口回收」检查数量。
 3. 用 `scripts/capture.sh <窗口ID> 80` 查看该窗口。Codex 必须确认状态栏显示模型名和 `Ready`；Claude 必须确认模型与输入框已就绪，且没有登录、目录信任、模型错误或其他待处理提示；启动失败或状态不明时不要发送任务。尚在启动时可短暂等待后再确认，不能仅凭固定延时认定就绪。
 4. 执行 `scripts/send.sh <窗口ID> <prompt文件>`，以 bracketed paste 向已启动的 worker 窗口粘贴完整任务，再按 Enter 提交。任务中的引号、反引号、`$()` 和多行正文必须按字面传入。
 5. 补充材料、验收反馈和后续任务仍发送到原 `<窗口ID>` 窗口；发送前确认上一轮已结束且输入框可用。窗口退出时先核实原任务结果，再按「恢复已关闭的窗口」恢复会话，或重新启动。
