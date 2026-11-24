@@ -23,14 +23,28 @@ class Workers(unittest.TestCase):
         old = [event('T1', 'Stop', last_assistant_message='old')]
         self.assertIsNone(events.scan_events(old, 'T2'))
         ask = event('T3', 'PreToolUse', tool_name='AskUserQuestion', tool_input={'questions': ['which?']})
+        ask_perm = event('T3b', 'PermissionRequest', tool_name='AskUserQuestion', tool_input={'questions': ['which?']})
+        ask_notif = event('T3c', 'Notification', notification_type='permission_prompt', message='Claude needs your permission')
         state = events.scan_events(old + [ask, '{partial'], 'T2')
         self.assertEqual(json.loads(state[1])['kind'], 'claude_menu')
-        self.assertIsNone(events.scan_events([ask], 'T2', {'T3'}))
-        self.assertIsNone(events.scan_events([ask, event('T4', 'PostToolUse')], 'T2'))
+        # Follow-up PermissionRequest / Notification must not clobber claude_menu, questions, or call_id.
+        state = events.scan_events(old + [ask, ask_perm, ask_notif], 'T2')
+        payload = json.loads(state[1])
+        self.assertEqual(payload['kind'], 'claude_menu')
+        self.assertEqual(payload['call_id'], 'T3')
+        self.assertEqual(payload['questions'], ['which?'])
+        self.assertIsNone(events.scan_events([ask, ask_perm, ask_notif], 'T2', {'T3'}))
+        self.assertIsNone(events.scan_events([ask, ask_perm, ask_notif, event('T4', 'PostToolUse')], 'T2'))
         self.assertEqual(events.scan_events([event('T4', 'Stop', last_assistant_message='done'), event('T5', 'SessionEnd')], 'T2'), ('completed', 'done'))
         self.assertEqual(events.scan_events([event('T4', 'StopFailure', error='rate_limit')], 'T2'), ('aborted', 'rate_limit'))
         self.assertIsNone(events.scan_events([event('T4', 'Stop'), event('T5', 'UserPromptSubmit')], 'T2'))
-        self.assertEqual(events.scan_events([event('T4', 'PermissionRequest')], 'T2')[0], 'needs_input')
+        perm = event('T4', 'PermissionRequest', tool_name='Bash', tool_input={'command': 'rm -rf x'})
+        perm_notif = event('T4b', 'Notification', notification_type='permission_prompt', message='Claude needs your permission')
+        perm_state = events.scan_events([perm, perm_notif], 'T2')
+        self.assertEqual(perm_state[0], 'needs_input')
+        self.assertEqual(json.loads(perm_state[1])['call_id'], 'T4')
+        self.assertEqual(json.loads(perm_state[1])['tool_name'], 'Bash')
+        self.assertIsNone(events.scan_events([perm, perm_notif], 'T2', {'T4'}))
 
     def test_dispatch_and_wait(self):
         with tempfile.TemporaryDirectory(prefix='cowork test ') as temp:
@@ -82,6 +96,7 @@ if sys.argv[1] == 'new-session':
             self.assertEqual(args[:4], alias_args)
             args = args[4:]
             self.assertEqual(args[:2], ['--model', 'model with spaces'])
+            self.assertEqual(args[4:6], ['--disallowedTools', 'AskUserQuestion'])
             self.assertEqual(args[-4:], ['--effort', 'high', '--resume', uuid])
             settings = json.loads(Path(args[3]).read_text())
             command = settings['hooks']['Stop'][0]['hooks'][0]['command']

@@ -4,7 +4,7 @@
 
 - 首次使用检查 `claude auth status`；显式选模型，如 `sonnet`、`opus` 或用户提供的模型 ID。不可用时报告实际错误，不自行换模型。
 - `scripts/dispatch.sh <name> <dir> -m sonnet --worker claude [--effort low|medium|high|xhigh] [--resume UUID]`。可改为 `--worker claude-glink` 显式启动 claude-glink；两者共用 Claude 事件协议。模型路由由用户入口控制，保留其配置。不支持 `--search`，搜索使用 Claude 已配置的工具。
-- 脚本由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后执行 `claude --model ... --settings ...`，遵循别名（例如 `claude-glink --dangerously-skip-permissions`）和环境设置；仅对子进程清除 `CLAUDECODE` 嵌套标记。`COWORK_WORKER=1` 使本技能的 SessionStart hook 保持静默，避免 worker 递归变成 Lead。
+- 脚本由 zsh 加载 `${ZDOTDIR:-$HOME}/.zshrc` 后执行 `claude --model ... --settings ... --disallowedTools AskUserQuestion`，遵循别名（例如 `claude-glink --dangerously-skip-permissions`）和环境设置；禁用 `AskUserQuestion` 可避免 worker 弹出阻塞式交互选项卡，需确认的问题会直接以普通文本在 `Stop` 回合结束时返回给 Lead；仅对子进程清除 `CLAUDECODE` 嵌套标记。`COWORK_WORKER=1` 使本技能的 SessionStart hook 保持静默，避免 worker 递归变成 Lead。
 - 用 `capture.sh` 确认输入框、模型和目录，先处理登录、信任或其他弹窗，再用 `send.sh` 发送任务。Claude 界面无需出现 Codex 的 `Ready` 字样。iTerm2/Terminal.app 发送时要求前台进程识别为 `claude`，不以泛化的 `node` 进程作为就绪依据；Orca 分屏要求 `agentIdentity` 已识别为 `claude`（启动中为空，`send.sh` 会拒绝并提示稍候）。
 - 每次启动创建独立的 `${TMPDIR:-/tmp}/cowork/launch.*` 目录，`<pane>.worker` 记录 worker 类型和该目录。保留目录直到结果和恢复信息取走。
 

@@ -59,7 +59,8 @@ elif [[ $worker == agy ]]; then
   [[ -z $resume ]] || cmd+=" --conversation $resume"
 else
   python3 -I "$here/claude-events.py" settings "$launch" > "$launch/settings.json"
-  printf -v cmd '%s --model %q --settings %q' "$entry" "$model" "$launch/settings.json"
+  # Disable interactive AskUserQuestion menus in worker panes so questions come back as normal text on Stop.
+  printf -v cmd '%s --model %q --settings %q --disallowedTools AskUserQuestion' "$entry" "$model" "$launch/settings.json"
   [[ -z $effort ]] || cmd+=" --effort $effort"
   [[ -z $resume ]] || cmd+=" --resume $resume"
 fi

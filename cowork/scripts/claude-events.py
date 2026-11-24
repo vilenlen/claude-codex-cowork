@@ -79,9 +79,12 @@ def scan_events(lines, sent, seen=()):
                 state = ('needs_input', json.dumps({'kind': 'claude_menu',
                     'call_id': event['timestamp'], **event.get('tool_input', {})}, ensure_ascii=False))
         elif kind == 'PermissionRequest' or (kind == 'Notification' and event.get('notification_type') in ('permission_prompt', 'elicitation_dialog')):
-            state = ('needs_input', json.dumps({'kind': 'claude_permission',
-                'call_id': event['timestamp'], 'message': event.get('message', ''),
-                'tool_name': event.get('tool_name'), 'tool_input': event.get('tool_input')}, ensure_ascii=False))
+            # Preserve an already-pending needs_input (e.g. PreToolUse AskUserQuestion or PermissionRequest)
+            # so follow-up PermissionRequest/Notification events do not clobber kind, tool_input, or call_id.
+            if not (state and state[0] == 'needs_input'):
+                state = ('needs_input', json.dumps({'kind': 'claude_permission',
+                    'call_id': event['timestamp'], 'message': event.get('message', ''),
+                    'tool_name': event.get('tool_name'), 'tool_input': event.get('tool_input')}, ensure_ascii=False))
     if state and state[0] == 'needs_input' and json.loads(state[1])['call_id'] in seen:
         return None
     return state
