@@ -1,0 +1,20 @@
+cowork/references/claude.md
+  h_8fd57da2fb332a 7
+cowork/scripts/claude-events.py
+  h_8fd57da2fb332a 82-87
+cowork/scripts/dispatch.sh
+  h_8fd57da2fb332a 62-63
+cowork/scripts/test_workers.py
+  h_8fd57da2fb332a 26-27,30-37,41-47,99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "085b567413c24a5f6a1b09404ec0ab5754de67de",
+  "prompts": {},
+  "humans": {
+    "h_8fd57da2fb332a": {
+      "author": "vilenlen <yanlinw510@gmail.com>"
+    }
+  }
+}
